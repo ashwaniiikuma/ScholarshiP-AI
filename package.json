@@ -1,0 +1,10 @@
+{
+  "name": "scolar-project-root",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix react-app run dev",
+    "build": "npm --prefix react-app run build",
+    "preview": "npm --prefix react-app run preview",
+    "postinstall": "npm --prefix react-app install"
+  }
+}
