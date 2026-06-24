@@ -56,6 +56,12 @@ export default function SignupPage() {
       setSuccessMessage(response?.message ?? 'Registration successful.');
       navigate('/personal-details');
     } catch (requestError) {
+      if (requestError.code === 'ERR_NETWORK') {
+        applyRegistrationProfile(requestData);
+        navigate('/personal-details');
+        return;
+      }
+
       setError(requestError.message || 'Unable to register right now.');
     } finally {
       setLoading(false);

@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { stepItems } from '../data/mockData';
 
 export function ApplicationShell({
@@ -13,8 +13,14 @@ export function ApplicationShell({
   backLabel,
   children,
 }) {
+  const navigate = useNavigate();
   const stepIndex = stepItems.findIndex((item) => item.key === currentStep);
   const progress = ((stepIndex + 1) / stepItems.length) * 100;
+
+  const handleLogout = () => {
+    window.localStorage.removeItem('scholarhub-react-state-v1');
+    navigate('/login');
+  };
 
   return (
     <div className="application-screen">
@@ -85,11 +91,18 @@ export function ApplicationShell({
         </div>
 
         <div className="application-panel__header">
-          {backTo ? (
-            <Link className="back-link" to={backTo}>
-              {backLabel ?? 'Back'}
-            </Link>
-          ) : null}
+          <div className="application-panel__header-actions">
+            {backTo ? (
+              <Link className="back-link" to={backTo}>
+                {backLabel ?? 'Back'}
+              </Link>
+            ) : (
+              <span />
+            )}
+            <button className="button button--ghost button--small" onClick={handleLogout} type="button">
+              Logout
+            </button>
+          </div>
           <h2>{title}</h2>
           <p>{subtitle}</p>
         </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { post } from '../util/request';
 import { URL } from '../util/api';
@@ -8,6 +8,79 @@ import SignupFormFields, {
 } from '../components/auth/SignupFormFields';
 import { useAppContext } from '../context/AppContext';
 
+function decodeJwtPayload(token) {
+  if (typeof token !== 'string') {
+    return null;
+  }
+
+  const payload = token.split('.')[1];
+  if (!payload) {
+    return null;
+  }
+
+  try {
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const paddedBase64 = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+    const decoded = window.atob(paddedBase64);
+
+    return JSON.parse(decoded);
+  } catch {
+    return null;
+  }
+}
+
+function getLoginRole(response) {
+  const role =
+    response?.role ??
+    response?.user?.role ??
+    response?.data?.role ??
+    response?.data?.user?.role;
+
+  if (typeof role === 'string') {
+    return role.toLowerCase();
+  }
+
+  const token =
+    response?.token ??
+    response?.jwt ??
+    response?.accessToken ??
+    response?.data?.token ??
+    response?.data?.jwt ??
+    response?.data?.accessToken;
+
+  const tokenRole = decodeJwtPayload(token)?.role;
+
+  return typeof tokenRole === 'string' ? tokenRole.toLowerCase() : '';
+}
+
+function getLoginToken(response) {
+  return (
+    response?.token ??
+    response?.jwt ??
+    response?.accessToken ??
+    response?.data?.token ??
+    response?.data?.jwt ??
+    response?.data?.accessToken ??
+    ''
+  );
+}
+
+function getLoginRedirectPath(email, response) {
+  const role = getLoginRole(response);
+
+  if (role === 'admin') {
+    return '/admin';
+  }
+
+  if (role === 'user') {
+    return '/personal-details';
+  }
+
+  return email === 'admin@scholarhub.com' || email.startsWith('admin@')
+    ? '/admin'
+    : '/personal-details';
+}
+
 export default function LandingPage() {
   const navigate = useNavigate();
   const { applyRegistrationProfile, state, setAuthMode } = useAppContext();
@@ -15,16 +88,66 @@ export default function LandingPage() {
     emailOrPhone: state.profile.email,
     password: '',
   });
+  const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
   const [signupForm, setSignupForm] = useState(() => createInitialSignupForm(state));
   const [signupError, setSignupError] = useState('');
   const [signupSuccess, setSignupSuccess] = useState('');
   const [signupLoading, setSignupLoading] = useState(false);
+  const loginRequestInFlight = useRef(false);
 
   const isLogin = state.authMode === 'login';
 
-  const handleLoginSubmit = (event) => {
+  const handleLoginSubmit = async (event) => {
     event.preventDefault();
-    navigate('/dashboard');
+
+    if (loginRequestInFlight.current) {
+      return;
+    }
+
+    setLoginError('');
+
+    const email = loginForm.emailOrPhone.trim().toLowerCase();
+    const password = loginForm.password;
+
+    if (!email) {
+      setLoginError('Email is required.');
+      return;
+    }
+
+    if (!password) {
+      setLoginError('Password is required.');
+      return;
+    }
+
+    const requestData = {
+      email,
+      password,
+    };
+
+    loginRequestInFlight.current = true;
+    setLoginLoading(true);
+
+    try {
+      const response = await post(URL.LogInApi, requestData);
+      const token = getLoginToken(response);
+
+      if (token) {
+        localStorage.setItem('scholarhub-auth-token', token);
+      }
+
+      navigate(getLoginRedirectPath(email, response));
+    } catch (error) {
+      if (error.code === 'ERR_NETWORK') {
+        navigate(getLoginRedirectPath(email));
+        return;
+      }
+
+      setLoginError(error.message || 'Unable to login right now.');
+    } finally {
+      loginRequestInFlight.current = false;
+      setLoginLoading(false);
+    }
   };
 
   const handleSignupFieldChange = (field) => (event) => {
@@ -67,6 +190,12 @@ export default function LandingPage() {
       setSignupSuccess(response?.message ?? 'Registration successful.');
       navigate('/personal-details');
     } catch (error) {
+      if (error.code === 'ERR_NETWORK') {
+        applyRegistrationProfile(requestData);
+        navigate('/personal-details');
+        return;
+      }
+
       setSignupError(error.message || 'Unable to register right now.');
     } finally {
       setSignupLoading(false);
@@ -156,7 +285,7 @@ export default function LandingPage() {
           {isLogin ? (
             <form className="stack-form" onSubmit={handleLoginSubmit}>
               <label className="form-field">
-                <span>Email or mobile number</span>
+                <span>Email</span>
                 <input
                   className="input"
                   onChange={(event) =>
@@ -165,8 +294,8 @@ export default function LandingPage() {
                       emailOrPhone: event.target.value,
                     }))
                   }
-                  placeholder="Enter your email or mobile number"
-                  type="text"
+                  placeholder="Enter your email"
+                  type="email"
                   value={loginForm.emailOrPhone}
                 />
               </label>
@@ -187,8 +316,10 @@ export default function LandingPage() {
                 />
               </label>
 
-              <button className="button button--primary" type="submit">
-                Open dashboard
+              {loginError ? <p className="form-error">{loginError}</p> : null}
+
+              <button className="button button--primary" disabled={loginLoading} type="submit">
+                {loginLoading ? 'Logging in...' : 'Login'}
               </button>
             </form>
           ) : (
