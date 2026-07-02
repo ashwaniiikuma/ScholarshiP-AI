@@ -10,19 +10,22 @@ const requestClient = axios.create({
 
 function getErrorMessage(error, fallbackMessage) {
   if (error.code === 'ERR_NETWORK') {
-    return `API server is not reachable at ${config.API_BASE_URL}. Start the backend server or update VITE_API_BASE_URL.`;
+    return 'Something went wrong. Please try again later.';
   }
 
   if (error.response?.status === 401) {
-    return 'Invalid credentials';
+    return 'Invalid email or password.';
   }
 
-  return (
-    error.response?.data?.message ??
-    error.response?.data?.error ??
-    error.message ??
-    fallbackMessage
-  );
+  if (error.response?.status === 403) {
+    return 'You are not authorized to perform this action.';
+  }
+
+  if (error.response?.status === 404) {
+    return 'The requested resource was not found.';
+  }
+
+  return fallbackMessage;
 }
 
 export async function get(url, config = {}) {
@@ -30,7 +33,7 @@ export async function get(url, config = {}) {
     const response = await requestClient.get(url, config);
     return response.data;
   } catch (error) {
-    throw new Error(getErrorMessage(error, 'GET request failed.'));
+    throw new Error(getErrorMessage(error, 'Unable to load data right now.'));
   }
 }
 
@@ -39,7 +42,9 @@ export async function post(url, data = {}, config = {}) {
     const response = await requestClient.post(url, data, config);
     return response.data;
   } catch (error) {
-    const requestError = new Error(getErrorMessage(error, 'POST request failed.'));
+    const requestError = new Error(
+      getErrorMessage(error, 'Unable to complete your request right now.')
+    );
     requestError.code = error.code;
     requestError.status = error.response?.status;
     throw requestError;

@@ -18,6 +18,8 @@ export function ApplicationShell({
   const progress = ((stepIndex + 1) / stepItems.length) * 100;
 
   const handleLogout = () => {
+    window.localStorage.removeItem('scholarhub-auth-token');
+    window.localStorage.removeItem('token');
     window.localStorage.removeItem('scholarhub-react-state-v1');
     navigate('/login');
   };
@@ -79,11 +81,20 @@ export function ApplicationShell({
 
       <main className="application-panel">
         <div className="application-progress">
-          <div className="application-progress__row">
-            <span>
-              Step {stepIndex + 1} of {stepItems.length}
-            </span>
-            <span>{Math.round(progress)}% complete</span>
+          <div className="application-progress__top">
+            <div className="application-progress__row">
+              <span>
+                Step {stepIndex + 1} of {stepItems.length}
+              </span>
+              <span>{Math.round(progress)}% complete</span>
+            </div>
+            <button
+              className="button button--ghost button--small application-progress__logout"
+              onClick={handleLogout}
+              type="button"
+            >
+              Logout
+            </button>
           </div>
           <div className="progress-track">
             <div className="progress-track__fill" style={{ width: `${progress}%` }} />
@@ -99,9 +110,6 @@ export function ApplicationShell({
             ) : (
               <span />
             )}
-            <button className="button button--ghost button--small" onClick={handleLogout} type="button">
-              Logout
-            </button>
           </div>
           <h2>{title}</h2>
           <p>{subtitle}</p>

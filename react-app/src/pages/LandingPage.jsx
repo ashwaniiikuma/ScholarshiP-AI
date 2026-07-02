@@ -65,6 +65,14 @@ function getLoginToken(response) {
   );
 }
 
+function hasSuccessfulLoginResponse(response) {
+  if (response?.success === false) {
+    return false;
+  }
+
+  return Boolean(getLoginToken(response));
+}
+
 function getLoginRedirectPath(email, response) {
   const role = getLoginRole(response);
 
@@ -130,19 +138,19 @@ export default function LandingPage() {
 
     try {
       const response = await post(URL.LogInApi, requestData);
-      const token = getLoginToken(response);
-
-      if (token) {
-        localStorage.setItem('scholarhub-auth-token', token);
-      }
-
-      navigate(getLoginRedirectPath(email, response));
-    } catch (error) {
-      if (error.code === 'ERR_NETWORK') {
-        navigate(getLoginRedirectPath(email));
+      if (!hasSuccessfulLoginResponse(response)) {
+        window.localStorage.removeItem('scholarhub-auth-token');
+        window.localStorage.removeItem('token');
+        setLoginError('Login failed. Please check the API response and try again.');
         return;
       }
 
+      const token = getLoginToken(response);
+      window.localStorage.setItem('scholarhub-auth-token', token);
+      navigate(getLoginRedirectPath(email, response));
+    } catch (error) {
+      window.localStorage.removeItem('scholarhub-auth-token');
+      window.localStorage.removeItem('token');
       setLoginError(error.message || 'Unable to login right now.');
     } finally {
       loginRequestInFlight.current = false;
@@ -334,14 +342,6 @@ export default function LandingPage() {
             />
           )}
 
-          <div className="auth-card__footer">
-            <Link className="text-link" to="/signup">
-              Open dedicated signup screen
-            </Link>
-            <Link className="text-link" to="/assistant">
-              Preview AI assistant
-            </Link>
-          </div>
         </div>
       </section>
     </div>

@@ -614,13 +614,25 @@ li {
   border-radius: 1.2rem;
 }
 
+.application-progress__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 .application-progress__row {
   display: flex;
+  flex: 1;
   justify-content: space-between;
   gap: 1rem;
   color: var(--text-soft);
   font-size: 0.84rem;
   font-weight: 700;
+}
+
+.application-progress__logout {
+  flex-shrink: 0;
 }
 
 .progress-track {
@@ -1385,5 +1397,16 @@ li {
   .signup-aside h1,
   .application-aside__body h1 {
     font-size: 2rem;
+  }
+
+  .application-progress__top,
+  .application-progress__row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .application-progress__logout {
+    width: 100%;
+    justify-content: center;
   }
 }
