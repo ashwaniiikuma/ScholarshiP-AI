@@ -117,7 +117,7 @@ export default function LandingPage() {
 
     const email = loginForm.emailOrPhone.trim().toLowerCase();
     const password = loginForm.password;
-
+             
     if (!email) {
       setLoginError('Email is required.');
       return;
@@ -137,17 +137,39 @@ export default function LandingPage() {
     setLoginLoading(true);
 
     try {
-      const response = await post(URL.LogInApi, requestData);
-      if (!hasSuccessfulLoginResponse(response)) {
+      const response = await fetch('http://localhost:5000/user/login',{
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData)
+      });
+      if (!response.ok) {
         window.localStorage.removeItem('scholarhub-auth-token');
         window.localStorage.removeItem('token');
-        setLoginError('Login failed. Please check the API response and try again.');
+
+        const errrorText = await response.text();
+        setLoginError(errrorText || 'Login failed. Please check the API response and try again.');
         return;
       }
 
-      const token = getLoginToken(response);
-      window.localStorage.setItem('scholarhub-auth-token', token);
-      navigate(getLoginRedirectPath(email, response));
+      const data = await response.json();
+      const token = data.token;
+
+      if(!token){
+        setLoginError('Token not received from server.')
+      }
+
+    window.localStorage.setItem('scholarhub-auth-token', token);
+    window.localStorage.setItem('token', token);
+
+      const role = data.role ||  (data.user && data.user.role) || '';
+      if(role.toLowerCase() === 'admin'){
+        navigate('/admin');
+      }else{
+        navigate('/personal-details')
+      }
+
     } catch (error) {
       window.localStorage.removeItem('scholarhub-auth-token');
       window.localStorage.removeItem('token');

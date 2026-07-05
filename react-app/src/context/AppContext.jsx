@@ -309,7 +309,59 @@ export function AppProvider({ children }) {
     }));
   };
 
-  const submitApplication = () => {
+  const submitApplication = async () => {
+    //1. Frontend se saara data samet kar backend ke schema ke hisab se taiyar hoga
+    console.log("Bhai ye raha poora state:", state);
+    const finalProfileData ={
+      name: state.personal?.fullName,
+      dateOfBirth: state.personal?.dob,
+      gender: state.personal?.gender,
+      city: state.personal?.city,
+      state: state.personal?.state,
+
+      //Academic details
+      collegeName: state.academic?.course || "College",
+      educationLevel:state.academic?.stream || "Undergraduate",
+      cgpa: Number(state.academic?.marks) || 0,
+
+      //Final details
+      income: Number(state.financial?.incomeRange?.replace(/[^0-9]/g, '')) || 0,//Only take a Numbers for the text 
+      category: state.financial?.category,
+      studentType: "College"  // he Passed the default enum value
+    
+    };
+
+    try{ 
+
+      const userId = state.registration?.lastResponse?._id || state.registration?.lastResponse?.user?._id;
+
+        console.log("Full registration state:", state.registration);
+console.log("lastResponse:", state.registration?.lastResponse);
+console.log("userId mili:", userId);
+
+      if(!userId) {
+        console.error("User ID nahi mili! pehele login/signup check karo.");
+      return;
+      }
+const response = await fetch(`http://localhost:5000/user/update-profile/${userId}`, { 
+     
+  
+  method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(finalProfileData),
+      });
+
+      if (!response.ok) {
+        throw new Error("Database me profile save nhi ho payi.");
+      }
+      const data = await response.json();
+      console.log("Backend Response:", data);
+    
+    
+
+      // if data saved in databse, so as it's submitted on fronted
     setState((current) => ({
       ...current,
       applicationStatus: 'submitted',
@@ -326,14 +378,120 @@ export function AppProvider({ children }) {
         ...current.notifications,
       ],
     }));
+  }catch (error) {
+    console.error("Final submit error:", error);
+    alert("An error accoured while file submitting the profile; ", + error.message);
+  }
+}
+
+
+const loadRealUserProfile = async () =>{
+
+  // pick up the token for the localstorage
+  const token = localStorage.getItem('scholarhub-auth-token') || localStorage.getItem('token');
+
+  if(!token){
+    console.warn("Token not avialable! Please login/signup then after you forword");
+    return;
+  }
+
+  try {
+      const response = await fetch("http://localhost:5000/user/profile", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          // Pranjal ke auth middleware ko pass karne ke liye Bearer Token bheja
+          "Authorization": token
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error("Backend ne profile dene se mana kar diya.");
+      }
+
+      const dbUserData = await response.json();
+      console.log(" MongoDB se Real User Data Aa Gaya:", dbUserData);
+
+      // Global state ko backend ke real data se sync karo taaki dashboard dynamic ho jaye
+      setState((current) => ({
+        ...current,
+        profile: {
+          ...current.profile,
+          // Agar database me naam hai toh wo dikhao, warna email ka prefix use kar lo
+          name: dbUserData.name || dbUserData.fullName || dbUserData.email.split('@')[0],
+          email: dbUserData.email,
+        },
+        personal: {
+          ...current.personal,
+          fullName: dbUserData.name || dbUserData.fullName || current.personal.fullName,
+          state: dbUserData.state || current.personal.state,
+          city: dbUserData.city || current.personal.city,
+        }
+      }));
+
+    } catch (error) {
+      console.error("Dashboard profile sync fail:", error);
+    }
+}
+
+//To fetch real-time recommendation for logged-in users from a backend
+const loadRecommendedScholarships = async () => {
+    const token = localStorage.getItem('scholarhub-auth-token') || localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const response = await fetch("http://localhost:5000/scholarship/recommendations", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": token
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("🔥 Real Recommendations from DB:", data);
+        
+        // Kamlesh ke mock array (recommendedPrograms) ko backend data se update karo
+        setState((current) => ({
+          ...current,
+          // Agar database me data hai toh use array me set karo
+          recommendedProgramsData: data 
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to load recommendations:", error);
+    }
   };
+// ⏰ 2. Backend se Expiring Soon waali scholarships lana (Deadlines ke liye)
+  const loadExpiringDeadlines = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/scholarship/expiring-soon", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("⏰ Real Deadlines from DB:", data);
+        
+        setState((current) => ({
+          ...current,
+          deadlineItemsData: data
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to load deadlines:", error);
+    }
+  }
+
 
   const profileCompletion = calculateCompletion(state);
   const unreadNotifications = state.notifications.filter((notification) => !notification.read).length;
   const selectedProgram =
     programs.find((program) => program.id === state.selectedProgramId) ?? programs[0];
 
-  const value = {
+const value = {
     state,
     setAuthMode,
     applyRegistrationProfile,
@@ -345,6 +503,9 @@ export function AppProvider({ children }) {
     sendAssistantMessage,
     resetAssistantConversation,
     submitApplication,
+    loadRecommendedScholarships, // 🔥 Exported
+    loadExpiringDeadlines,
+    loadRealUserProfile, // 🔥 FIX: Yeh line jod di taaki dashboard ise call kar sake!
     profileCompletion,
     unreadNotifications,
     selectedProgram,
@@ -354,7 +515,6 @@ export function AppProvider({ children }) {
     applicationItems,
     activityFeed,
   };
-
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 

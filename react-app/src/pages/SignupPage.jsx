@@ -41,31 +41,52 @@ export default function SignupPage() {
       name: form.name.trim(),
       email: form.email.trim().toLowerCase(),
       password: form.password,
-      state: form.state,
-      category: form.category,
-      income: Number(form.income),
-      educationLevel: form.educationLevel,
-      cgpa: Number(form.cgpa),
+      state: form.state || "Uttar Pradesh",
+      category: form.category || "General",
+      income: Number(form.income) || 0,
+      educationLevel: form.educationLevel || "Postgraduate",
+      cgpa: Number(form.cgpa) || 0,
+      
+      // Ye dummy fields jod do validation pass karne ke liye:
+      studentType: "College",
+      dateOfBirth: "2000-01-01",
+      gender: "Male",
+      mobile: "1234567890",
+      collegeName: "Default College"
     };
 
     setLoading(true);
 
     try {
-      const response = await post(URL.Register, requestData);
-      applyRegistrationProfile(requestData, response);
-      setSuccessMessage(response?.message ?? 'Registration successful.');
-      navigate('/personal-details');
-    } catch (requestError) {
-      if (requestError.code === 'ERR_NETWORK') {
-        applyRegistrationProfile(requestData);
-        navigate('/personal-details');
+      // 1. POST method aur requestData ko body me bhejna zaroori hai
+      const response = await fetch('http://localhost:5000/user/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData)
+      });
+
+      // 2. Agar backend se koi error aata hai (jaise 400 ya 500)
+      if (!response.ok) {
+        const errorText = await response.text();
+        setError(errorText || 'Registration failed. Please try again.');
         return;
       }
 
+      // 3. Agar success hua, toh JSON response padho
+      const data = await response.json();
+      
+      applyRegistrationProfile(requestData, data);
+      setSuccessMessage(data?.message ?? 'Registration successful.');
+      navigate('/personal-details');
+
+    } catch (requestError) {
       setError(requestError.message || 'Unable to register right now.');
     } finally {
       setLoading(false);
     }
+    
   };
 
   return (
