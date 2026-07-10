@@ -6,5 +6,8 @@
     "build": "npm --prefix react-app run build",
     "preview": "npm --prefix react-app run preview",
     "postinstall": "npm --prefix react-app install"
+  },
+  "devDependencies": {
+    "electron": "^43.1.0"
   }
 }

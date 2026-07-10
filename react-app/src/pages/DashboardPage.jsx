@@ -76,12 +76,15 @@ export default function DashboardPage() {
           </button>
         </>
       }
+
       eyebrow="Student dashboard"
       subtitle="A routed React dashboard that consolidates the legacy dashboard, program view, and application progress signals."
       title={`Welcome back, ${state.profile?.name ? state.profile.name.split(' ')[0]: 'student'}`}
     >
+      
       <div className="dashboard-grid">
         <div className="stack-column">
+          
           <SectionCard title="Profile completion" subtitle="Keep the core application ready">
             <div className="completion-panel">
               <div className="completion-panel__copy">

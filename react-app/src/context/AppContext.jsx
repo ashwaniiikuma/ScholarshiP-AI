@@ -450,9 +450,8 @@ const loadRecommendedScholarships = async () => {
 
       if (response.ok) {
         const data = await response.json();
-        console.log("🔥 Real Recommendations from DB:", data);
+        console.log(" Real Recommendations from DB:", data);
         
-        // Kamlesh ke mock array (recommendedPrograms) ko backend data se update karo
         setState((current) => ({
           ...current,
           // Agar database me data hai toh use array me set karo
@@ -463,7 +462,7 @@ const loadRecommendedScholarships = async () => {
       console.error("Failed to load recommendations:", error);
     }
   };
-// ⏰ 2. Backend se Expiring Soon waali scholarships lana (Deadlines ke liye)
+//  2. Backend se Expiring Soon waali scholarships lana (Deadlines ke liye)
   const loadExpiringDeadlines = async () => {
     try {
       const response = await fetch("http://localhost:5000/scholarship/expiring-soon", {
@@ -473,7 +472,7 @@ const loadRecommendedScholarships = async () => {
 
       if (response.ok) {
         const data = await response.json();
-        console.log("⏰ Real Deadlines from DB:", data);
+        console.log(" Real Deadlines from DB:", data);
         
         setState((current) => ({
           ...current,

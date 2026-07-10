@@ -1,241 +1,668 @@
-﻿import { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import config from '../util/Config';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAdminUsers } from '../hooks/useAdminUsers';
+import './AdminDashboardPage.css';
 
-const adminDashboardStyles = ":root{\r\n    --primary:#4927EF; --primary-dark:#3A1ECC; --primary-light:#EAE7FC;\r\n    --bg:#F7F7FB; --white:#FFFFFF; --sidebar-bg:#FBFAFD;\r\n    --heading:#1E1B4B; --subtitle:#6B7190; --muted:#9498B3;\r\n    --border:#ECEBF7; --green:#16A34A; --green-bg:#ECFDF3;\r\n    --red:#DC2626; --red-bg:#FEF2F2;\r\n    --r-card:16px; --r-btn:10px;\r\n    --font:\u0027Inter\u0027,-apple-system,sans-serif;\r\n  }\r\n  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}\r\n  html{font-size:16px;}\r\n  body{font-family:var(--font);background:var(--bg);color:var(--heading);}\r\n  button{font-family:inherit;cursor:pointer;border:none;background:none;}\r\n  input{font-family:inherit;}\r\n  ::-webkit-scrollbar{width:6px;height:6px;}\r\n  ::-webkit-scrollbar-thumb{background:#DDDCF2;border-radius:99px;}\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â• LAYOUT â•â•â•â•â•â•â•â•â•â• */\r\n  .app{display:flex;min-height:100vh;}\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â• SIDEBAR â•â•â•â•â•â•â•â•â•â• */\r\n  .sidebar{\r\n    width:230px;flex-shrink:0;background:var(--sidebar-bg);\r\n    border-right:1px solid var(--border);\r\n    display:flex;flex-direction:column;\r\n    padding:24px 16px;\r\n    position:fixed; top:0; left:0; bottom:0;\r\n    transition:transform .25s ease;\r\n    z-index:200;\r\n  }\r\n  .sidebar-logo{display:flex;align-items:center;gap:9px;padding:0 8px 24px;}\r\n  .sidebar-logo-text{font-size:19px;font-weight:800;color:var(--heading);letter-spacing:-0.3px;}\r\n  .sidebar-logo-text span{color:var(--primary);}\r\n  .nav-list{list-style:none;display:flex;flex-direction:column;gap:2px;flex:1;overflow-y:auto;}\r\n  .nav-item{\r\n    display:flex;align-items:center;gap:11px;\r\n    padding:11px 14px;border-radius:11px;\r\n    font-size:13.8px;font-weight:600;color:#4B4F6B;\r\n    transition:background .15s,color .15s;\r\n    cursor:pointer; width:100%; text-align:left;\r\n  }\r\n  .nav-item svg{flex-shrink:0;}\r\n  .nav-item:hover{background:#F1F0FB;}\r\n  .nav-item.active{background:var(--primary-light);color:var(--primary);}\r\n  .nav-item.active svg{color:var(--primary);}\r\n\r\n  .secure-panel{\r\n    margin-top:18px;background:var(--primary-light);\r\n    border-radius:18px;padding:22px 16px;text-align:center;\r\n  }\r\n  .secure-icon{\r\n    width:52px;height:52px;border-radius:50%;background:#fff;\r\n    display:flex;align-items:center;justify-content:center;margin:0 auto 12px;\r\n    box-shadow:0 4px 14px rgba(73,39,239,.15);\r\n  }\r\n  .secure-title{font-size:13.5px;font-weight:700;color:var(--heading);margin-bottom:4px;}\r\n  .secure-text{font-size:11.5px;color:var(--subtitle);line-height:1.5;}\r\n\r\n  /* Mobile sidebar toggle */\r\n  .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(20,18,50,.4);z-index:150;}\r\n  .menu-toggle{display:none;}\r\n\r\n  @media (max-width:1023px){\r\n    .sidebar{transform:translateX(-100%);box-shadow:0 0 40px rgba(0,0,0,.15);}\r\n    .sidebar.open{transform:translateX(0);}\r\n    .sidebar-overlay.show{display:block;}\r\n    .menu-toggle{display:flex;}\r\n  }\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â• MAIN â•â•â•â•â•â•â•â•â•â• */\r\n  .main{flex:1;margin-left:230px;display:flex;flex-direction:column;min-width:0;}\r\n  @media (max-width:1023px){ .main{margin-left:0;} }\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â• TOPBAR â•â•â•â•â•â•â•â•â•â• */\r\n  .topbar{\r\n    display:flex;align-items:center;gap:14px;\r\n    padding:18px 28px;background:var(--bg);\r\n    flex-wrap:wrap;\r\n  }\r\n  .menu-toggle{\r\n    width:40px;height:40px;border-radius:10px;background:var(--white);\r\n    border:1px solid var(--border);align-items:center;justify-content:center;\r\n    flex-shrink:0;\r\n  }\r\n  .search-wrap{position:relative;flex:1;min-width:200px;max-width:440px;}\r\n  .search-input{\r\n    width:100%;height:44px;border-radius:12px;\r\n    border:1.5px solid var(--border);background:var(--white);\r\n    padding:0 16px 0 42px;font-size:13.5px;color:var(--heading);outline:none;\r\n    transition:border-color .15s,box-shadow .15s;\r\n  }\r\n  .search-input::placeholder{color:var(--muted);}\r\n  .search-input:focus{border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-light);}\r\n  .search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;}\r\n\r\n  .filter-btn{\r\n    display:flex;align-items:center;gap:8px;height:44px;padding:0 18px;\r\n    border-radius:12px;border:1.5px solid var(--border);background:var(--white);\r\n    font-size:13.5px;font-weight:600;color:var(--heading);\r\n    transition:background .15s,border-color .15s;flex-shrink:0;position:relative;\r\n  }\r\n  .filter-btn:hover{background:#FAFAFD;border-color:#D8D6F5;}\r\n  .filter-btn.active{border-color:var(--primary);color:var(--primary);background:var(--primary-light);}\r\n\r\n  .topbar-right{display:flex;align-items:center;gap:16px;margin-left:auto;}\r\n\r\n  .bell-btn{position:relative;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--heading);transition:background .15s;flex-shrink:0;}\r\n  .bell-btn:hover{background:#F1F0FB;}\r\n  .bell-badge{\r\n    position:absolute;top:4px;right:5px;\r\n    width:17px;height:17px;border-radius:50%;background:#EF4444;\r\n    color:#fff;font-size:9.5px;font-weight:700;\r\n    display:flex;align-items:center;justify-content:center;\r\n    border:2px solid var(--bg);\r\n  }\r\n\r\n  .admin-chip{display:flex;align-items:center;gap:10px;cursor:pointer;padding:4px;border-radius:12px;transition:background .15s;position:relative;}\r\n  .admin-chip:hover{background:#F1F0FB;}\r\n  .admin-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#4927EF,#7C3AED);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;flex-shrink:0;}\r\n  .admin-info{display:flex;flex-direction:column;line-height:1.25;}\r\n  .admin-name{font-size:13.5px;font-weight:700;color:var(--heading);}\r\n  .admin-role{font-size:11px;color:var(--muted);}\r\n  .admin-chip svg{color:var(--muted);margin-left:2px;}\r\n\r\n  .admin-dropdown{\r\n    position:absolute;top:calc(100% + 10px);right:0;\r\n    background:#fff;border:1px solid var(--border);border-radius:14px;\r\n    box-shadow:0 16px 40px rgba(30,27,75,.14);min-width:190px;\r\n    overflow:hidden;z-index:50;\r\n    opacity:0;transform:translateY(-6px) scale(.96);pointer-events:none;\r\n    transition:opacity .15s,transform .15s;\r\n  }\r\n  .admin-dropdown.open{opacity:1;transform:translateY(0) scale(1);pointer-events:all;}\r\n  .dd-item{display:flex;align-items:center;gap:10px;width:100%;padding:11px 16px;font-size:13px;font-weight:600;color:var(--heading);transition:background .12s;}\r\n  .dd-item:hover{background:#F7F7FB;}\r\n  .dd-item.danger{color:#DC2626;}\r\n  .dd-item.danger:hover{background:#FEF2F2;}\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â• STAT CARDS â•â•â•â•â•â•â•â•â•â• */\r\n  .stats-row{\r\n    display:grid;grid-template-columns:repeat(5,1fr);gap:16px;\r\n    padding:4px 28px 20px;\r\n  }\r\n  @media (max-width:1300px){ .stats-row{grid-template-columns:repeat(3,1fr);} }\r\n  @media (max-width:760px){ .stats-row{grid-template-columns:repeat(2,1fr);} }\r\n  @media (max-width:520px){ .stats-row{grid-template-columns:1fr;} }\r\n\r\n  .stat-card{\r\n    background:var(--white);border:1px solid var(--border);\r\n    border-radius:var(--r-card);padding:18px;\r\n    display:flex;flex-direction:column;gap:12px;\r\n    transition:transform .18s,box-shadow .18s;\r\n    cursor:default;\r\n  }\r\n  .stat-card:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(30,27,75,.08);}\r\n  .stat-top{display:flex;align-items:center;gap:12px;}\r\n  .stat-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}\r\n  .stat-label{font-size:12.5px;font-weight:600;color:var(--subtitle);}\r\n  .stat-value{font-size:23px;font-weight:800;color:var(--heading);letter-spacing:-0.3px;}\r\n  .stat-growth{font-size:11.5px;font-weight:600;color:var(--green);}\r\n  .stat-growth .stat-growth-muted{color:var(--muted);font-weight:500;}\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â• TABLE CARD â•â•â•â•â•â•â•â•â•â• */\r\n  .table-card{\r\n    margin:0 28px 28px;background:var(--white);\r\n    border:1px solid var(--border);border-radius:var(--r-card);\r\n    overflow:hidden;\r\n  }\r\n  .table-card-head{\r\n    display:flex;align-items:center;justify-content:space-between;\r\n    padding:20px 22px;flex-wrap:wrap;gap:12px;\r\n  }\r\n  .table-title{font-size:17px;font-weight:800;color:var(--heading);}\r\n  .export-btn{\r\n    display:flex;align-items:center;gap:8px;height:40px;padding:0 16px;\r\n    border-radius:10px;border:1.5px solid var(--primary-light);\r\n    background:var(--white);color:var(--primary);font-size:13px;font-weight:700;\r\n    transition:background .15s;\r\n  }\r\n  .export-btn:hover{background:var(--primary-light);}\r\n\r\n  .table-scroll{overflow-x:auto;}\r\n  table{width:100%;border-collapse:collapse;min-width:880px;}\r\n  thead tr{background:#FAFAFD;border-top:1px solid var(--border);border-bottom:1px solid var(--border);}\r\n  th{\r\n    padding:13px 18px;text-align:left;font-size:12px;font-weight:700;\r\n    color:var(--subtitle);white-space:nowrap;user-select:none;\r\n  }\r\n  th.sortable{cursor:pointer;}\r\n  th.sortable:hover{color:var(--heading);}\r\n  .th-flex{display:flex;align-items:center;gap:5px;}\r\n  .sort-icon{opacity:.5;transition:opacity .15s,transform .15s;}\r\n  th.sorted .sort-icon{opacity:1;color:var(--primary);}\r\n  th.sorted.desc .sort-icon{transform:rotate(180deg);}\r\n\r\n  tbody tr{border-bottom:1px solid var(--border);transition:background .12s;}\r\n  tbody tr:hover{background:#FAFAFD;}\r\n  tbody tr:last-child{border-bottom:none;}\r\n  td{padding:14px 18px;font-size:13.3px;color:var(--heading);white-space:nowrap;}\r\n\r\n  .cb{width:16px;height:16px;border-radius:5px;border:1.6px solid #C9C7E8;cursor:pointer;accent-color:var(--primary);}\r\n\r\n  .user-cell{display:flex;align-items:center;gap:10px;}\r\n  .avatar{width:34px;height:34px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12.5px;}\r\n  .user-name{font-weight:700;font-size:13.3px;}\r\n\r\n  .status-pill{\r\n    display:inline-flex;align-items:center;gap:6px;\r\n    padding:5px 12px;border-radius:99px;font-size:12px;font-weight:700;\r\n  }\r\n  .status-pill::before{content:\u0027\u0027;width:6px;height:6px;border-radius:50%;}\r\n  .status-pill.active{background:var(--green-bg);color:var(--green);}\r\n  .status-pill.active::before{background:var(--green);}\r\n  .status-pill.inactive{background:var(--red-bg);color:var(--red);}\r\n  .status-pill.inactive::before{background:var(--red);}\r\n\r\n  .action-cell{display:flex;align-items:center;gap:8px;}\r\n  .icon-btn{\r\n    width:32px;height:32px;border-radius:9px;border:1.5px solid var(--border);\r\n    background:var(--white);display:flex;align-items:center;justify-content:center;\r\n    color:var(--primary);transition:background .15s,border-color .15s;position:relative;flex-shrink:0;\r\n  }\r\n  .icon-btn:hover{background:var(--primary-light);border-color:#D8D6F5;}\r\n  .icon-btn.muted{color:var(--subtitle);}\r\n\r\n  .row-menu{\r\n    position:absolute;top:calc(100% + 6px);right:0;\r\n    background:#fff;border:1px solid var(--border);border-radius:12px;\r\n    box-shadow:0 14px 34px rgba(30,27,75,.14);min-width:160px;\r\n    overflow:hidden;z-index:60;\r\n    opacity:0;transform:translateY(-4px) scale(.95);pointer-events:none;\r\n    transition:opacity .14s,transform .14s;\r\n  }\r\n  .row-menu.open{opacity:1;transform:translateY(0) scale(1);pointer-events:all;}\r\n  .row-menu button{display:flex;align-items:center;gap:9px;width:100%;padding:10px 14px;font-size:12.5px;font-weight:600;color:var(--heading);}\r\n  .row-menu button:hover{background:#F7F7FB;}\r\n  .row-menu button.danger{color:#DC2626;}\r\n  .row-menu button.danger:hover{background:#FEF2F2;}\r\n\r\n  .empty-state{padding:60px 20px;text-align:center;color:var(--muted);}\r\n  .empty-state svg{margin-bottom:12px;opacity:.5;}\r\n  .empty-state p{font-size:13.5px;font-weight:600;}\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â• FOOTER / PAGINATION â•â•â•â•â•â•â•â•â•â• */\r\n  .table-footer{\r\n    display:flex;align-items:center;justify-content:space-between;\r\n    padding:16px 22px;border-top:1px solid var(--border);flex-wrap:wrap;gap:12px;\r\n  }\r\n  .showing-text{font-size:12.8px;color:var(--subtitle);font-weight:500;}\r\n  .pagination{display:flex;align-items:center;gap:6px;}\r\n  .page-btn{\r\n    min-width:34px;height:34px;padding:0 8px;border-radius:9px;\r\n    border:1.5px solid var(--border);background:var(--white);\r\n    font-size:12.8px;font-weight:700;color:var(--heading);\r\n    display:flex;align-items:center;justify-content:center;\r\n    transition:background .15s,border-color .15s;\r\n  }\r\n  .page-btn:hover:not(.active):not(:disabled){background:#F7F7FB;border-color:#D8D6F5;}\r\n  .page-btn.active{background:var(--primary);border-color:var(--primary);color:#fff;}\r\n  .page-btn:disabled{opacity:.4;cursor:not-allowed;}\r\n  .page-dots{padding:0 4px;color:var(--muted);font-size:13px;font-weight:700;}\r\n\r\n  /* Filters dropdown */\r\n  .filters-panel{\r\n    position:absolute;top:calc(100% + 10px);left:0;\r\n    background:#fff;border:1px solid var(--border);border-radius:14px;\r\n    box-shadow:0 16px 40px rgba(30,27,75,.14);width:260px;padding:16px;\r\n    z-index:60;opacity:0;transform:translateY(-6px) scale(.97);pointer-events:none;\r\n    transition:opacity .15s,transform .15s;\r\n  }\r\n  .filters-panel.open{opacity:1;transform:translateY(0) scale(1);pointer-events:all;}\r\n  .filters-panel-title{font-size:12.5px;font-weight:700;color:var(--subtitle);margin-bottom:10px;text-transform:uppercase;letter-spacing:.04em;}\r\n  .filter-chip-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;}\r\n  .filter-chip{\r\n    padding:7px 13px;border-radius:99px;border:1.5px solid var(--border);\r\n    font-size:12px;font-weight:600;color:var(--heading);transition:all .15s;\r\n  }\r\n  .filter-chip:hover{border-color:#D8D6F5;}\r\n  .filter-chip.selected{background:var(--primary);border-color:var(--primary);color:#fff;}\r\n  .filters-apply{width:100%;height:38px;border-radius:10px;background:var(--primary);color:#fff;font-size:13px;font-weight:700;}\r\n  .filters-apply:hover{background:var(--primary-dark);}\r\n\r\n  /* Toast */\r\n  .toast{\r\n    position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(12px);\r\n    background:var(--heading);color:#fff;padding:11px 22px;border-radius:99px;\r\n    font-size:13px;font-weight:600;z-index:999;opacity:0;\r\n    transition:all .25s;pointer-events:none;white-space:nowrap;\r\n  }\r\n  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}\r\n\r\n  /* Page section visibility */\r\n  .page-section{display:none;}\r\n  .page-section.active{display:block;}\r\n  .placeholder-page{padding:60px 28px;text-align:center;}\r\n  .placeholder-page svg{opacity:.35;margin-bottom:16px;}\r\n  .placeholder-page h2{font-size:19px;font-weight:800;color:var(--heading);margin-bottom:6px;}\r\n  .placeholder-page p{font-size:13.5px;color:var(--subtitle);}\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â• USER DETAILS PAGE (3-column) â•â•â•â•â•â•â•â•â•â• */\r\n  .ud-breadcrumb{display:flex;align-items:center;gap:8px;padding:4px 28px 16px;font-size:13.5px;font-weight:600;color:var(--muted);flex-wrap:wrap;}\r\n  .ud-crumb{cursor:pointer;transition:color .15s;}\r\n  .ud-crumb:hover{color:var(--primary);}\r\n  .ud-crumb.current{color:var(--heading);cursor:default;}\r\n  .ud-crumb.current:hover{color:var(--heading);}\r\n\r\n  .ud-page-search{margin:0 28px 18px;max-width:none;}\r\n  .ud-search-results{\r\n    position:absolute;top:calc(100% + 8px);left:0;right:0;background:#fff;\r\n    border:1px solid var(--border);border-radius:14px;box-shadow:0 16px 40px rgba(30,27,75,.14);\r\n    max-height:320px;overflow-y:auto;z-index:60;display:none;\r\n  }\r\n  .ud-search-results.open{display:block;}\r\n  .ud-search-result-item{display:flex;align-items:center;gap:11px;padding:11px 14px;cursor:pointer;transition:background .12s;}\r\n  .ud-search-result-item:hover{background:#F7F7FB;}\r\n  .ud-search-result-item .avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;flex-shrink:0;}\r\n  .ud-search-result-name{font-size:13px;font-weight:700;color:var(--heading);}\r\n  .ud-search-result-meta{font-size:11.5px;color:var(--subtitle);}\r\n  .ud-search-empty{padding:16px;text-align:center;font-size:12.5px;color:var(--muted);}\r\n\r\n  /* Profile header card (full width) */\r\n  .ud-profile-card{\r\n    margin:0 28px 18px;background:var(--white);border:1px solid var(--border);\r\n    border-radius:var(--r-card);padding:22px;\r\n    display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;\r\n  }\r\n  .ud-profile-left{display:flex;align-items:flex-start;gap:18px;flex:1;min-width:260px;}\r\n  .ud-profile-avatar-wrap{position:relative;flex-shrink:0;}\r\n  .ud-profile-avatar{width:84px;height:84px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:26px;}\r\n  .ud-camera-badge{position:absolute;bottom:0;right:0;width:26px;height:26px;border-radius:50%;background:#fff;border:2px solid var(--bg);display:flex;align-items:center;justify-content:center;color:var(--primary);box-shadow:0 2px 8px rgba(30,27,75,.1);cursor:pointer;}\r\n\r\n  .ud-profile-info{flex:1;min-width:200px;}\r\n  .ud-profile-name-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:7px;}\r\n  .ud-profile-name{font-size:21px;font-weight:800;color:var(--heading);letter-spacing:-0.3px;}\r\n  .ud-profile-id{font-size:13px;color:var(--subtitle);margin-bottom:3px;}\r\n  .ud-profile-reg{font-size:12.5px;color:var(--muted);margin-bottom:13px;}\r\n  .ud-contact-row{display:flex;flex-wrap:wrap;gap:18px;}\r\n  .ud-contact-item{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--heading);font-weight:500;}\r\n  .ud-contact-item svg{color:var(--primary);flex-shrink:0;}\r\n\r\n  .ud-actions{display:flex;align-items:center;gap:10px;flex-shrink:0;}\r\n  .ud-btn{display:flex;align-items:center;gap:7px;height:40px;padding:0 16px;border-radius:10px;font-size:12.8px;font-weight:700;transition:all .15s;white-space:nowrap;}\r\n  .ud-btn-primary{background:var(--primary);color:#fff;border:none;}\r\n  .ud-btn-primary:hover{background:var(--primary-dark);}\r\n  .ud-btn-outline{background:#fff;border:1.5px solid var(--border);color:var(--heading);}\r\n  .ud-btn-outline:hover{background:#F7F7FB;border-color:#D8D6F5;}\r\n  .ud-btn-icon{width:40px;height:40px;padding:0;justify-content:center;flex-shrink:0;position:relative;}\r\n\r\n  .ud-detail-menu{\r\n    position:absolute;top:calc(100% + 8px);right:0;background:#fff;\r\n    border:1px solid var(--border);border-radius:12px;box-shadow:0 14px 34px rgba(30,27,75,.14);\r\n    min-width:170px;overflow:hidden;z-index:40;\r\n    opacity:0;transform:translateY(-4px) scale(.96);pointer-events:none;transition:opacity .14s,transform .14s;\r\n  }\r\n  .ud-detail-menu.open{opacity:1;transform:translateY(0) scale(1);pointer-events:all;}\r\n  .ud-detail-menu button{display:flex;align-items:center;gap:9px;width:100%;padding:10px 14px;font-size:12.5px;font-weight:600;color:var(--heading);}\r\n  .ud-detail-menu button:hover{background:#F7F7FB;}\r\n  .ud-detail-menu button.danger{color:#DC2626;}\r\n  .ud-detail-menu button.danger:hover{background:#FEF2F2;}\r\n\r\n  /* Tabs (full width, below profile card) */\r\n  .ud-tabs{display:flex;gap:6px;margin:0 28px;padding:0 6px;background:var(--white);border:1px solid var(--border);border-radius:14px 14px 0 0;border-bottom:none;overflow-x:auto;}\r\n  .ud-tab{\r\n    display:flex;align-items:center;gap:7px;\r\n    padding:14px 16px;font-size:13px;font-weight:700;color:var(--subtitle);\r\n    border-bottom:2.5px solid transparent;white-space:nowrap;transition:color .15s,border-color .15s;flex-shrink:0;\r\n  }\r\n  .ud-tab svg{flex-shrink:0;}\r\n  .ud-tab:hover{color:var(--heading);}\r\n  .ud-tab.active{color:var(--primary);border-color:var(--primary);}\r\n  .ud-tab-count{font-size:11px;font-weight:700;color:var(--muted);}\r\n  .ud-tab.active .ud-tab-count{color:var(--primary);}\r\n\r\n  /* Body grid: main (2-col cards) + Quick Summary sidebar */\r\n  .ud-body{margin:0 28px 28px;display:grid;grid-template-columns:1fr 280px;gap:18px;align-items:start;\r\n    background:var(--white);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r-card) var(--r-card);padding:22px;}\r\n  @media (max-width:1180px){ .ud-body{grid-template-columns:1fr;} }\r\n\r\n  .ud-main-col{display:flex;flex-direction:column;gap:18px;min-width:0;}\r\n  .ud-cards-row{display:grid;grid-template-columns:1fr 1fr;gap:18px;}\r\n  @media (max-width:900px){ .ud-cards-row{grid-template-columns:1fr;} }\r\n\r\n  .ud-card{border:1px solid var(--border);border-radius:14px;padding:18px;}\r\n  .ud-card-title{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:800;color:var(--heading);margin-bottom:16px;}\r\n  .ud-card-title svg{color:var(--primary);flex-shrink:0;}\r\n\r\n  .ud-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 24px;}\r\n  @media (max-width:560px){ .ud-info-grid{grid-template-columns:1fr;} }\r\n  .ud-info-item{display:flex;align-items:flex-start;gap:10px;}\r\n  .ud-info-icon{width:28px;height:28px;border-radius:8px;background:var(--primary-light);display:flex;align-items:center;justify-content:center;color:var(--primary);flex-shrink:0;margin-top:1px;}\r\n  .ud-info-label{font-size:11px;font-weight:600;color:var(--muted);margin-bottom:2px;}\r\n  .ud-info-value{font-size:13px;font-weight:700;color:var(--heading);line-height:1.4;}\r\n\r\n  .ud-single-col-grid{display:flex;flex-direction:column;gap:14px;}\r\n  .ud-kv-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}\r\n  .ud-kv-label{font-size:12.5px;color:var(--subtitle);font-weight:600;flex-shrink:0;}\r\n  .ud-kv-value{font-size:13px;font-weight:700;color:var(--heading);text-align:right;line-height:1.4;}\r\n\r\n  .ud-verify-row{display:flex;align-items:center;justify-content:space-between;gap:10px;}\r\n  .ud-verify-label{font-size:12.5px;color:var(--subtitle);font-weight:600;}\r\n  .ud-verify-status{display:flex;align-items:center;gap:8px;}\r\n  .ud-verify-pill{font-size:11px;font-weight:700;padding:4px 11px;border-radius:99px;background:var(--green-bg);color:var(--green);}\r\n  .ud-verify-photo{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;}\r\n\r\n  /* Quick Summary sidebar */\r\n  .ud-summary-col{display:flex;flex-direction:column;gap:14px;}\r\n  .ud-summary-title{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800;color:var(--heading);margin-bottom:4px;}\r\n  .ud-summary-title svg{color:var(--primary);}\r\n  .ud-summary-card{\r\n    display:flex;align-items:center;gap:12px;padding:14px;border-radius:14px;\r\n    background:#FAFAFD;border:1px solid var(--border);transition:transform .15s,box-shadow .15s;\r\n  }\r\n  .ud-summary-card:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(30,27,75,.06);}\r\n  .ud-summary-icon{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}\r\n  .ud-summary-label{font-size:12px;font-weight:600;color:var(--subtitle);}\r\n  .ud-summary-value{font-size:16px;font-weight:800;color:var(--heading);margin-top:1px;}\r\n\r\n  .ud-divider{height:1px;background:var(--border);margin:20px 0;}\r\n\r\n  .ud-coming-soon{padding:60px 20px;text-align:center;grid-column:1/-1;}\r\n  .ud-coming-soon-emoji{font-size:40px;margin-bottom:14px;}\r\n  .ud-coming-soon h3{font-size:16px;font-weight:800;color:var(--heading);margin-bottom:6px;}\r\n  .ud-coming-soon p{font-size:13px;color:var(--subtitle);max-width:360px;margin:0 auto;}\r\n  .ud-coming-soon-badge{display:inline-block;margin-top:14px;background:#FEF3E2;color:#B45309;font-size:11px;font-weight:700;padding:5px 12px;border-radius:99px;}\r\n\r\n  .ud-empty-detail{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:90px 20px;text-align:center;min-height:420px;margin:0 28px;background:var(--white);border:1px solid var(--border);border-radius:var(--r-card);}\r\n  .ud-empty-detail svg{opacity:.3;margin-bottom:16px;}\r\n  .ud-empty-detail h3{font-size:16px;font-weight:800;color:var(--heading);margin-bottom:6px;}\r\n  .ud-empty-detail p{font-size:13px;color:var(--subtitle);}\r\n\r\n  /* Overview tab specifics */\r\n  .ud-overview-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px;}\r\n  @media (max-width:760px){ .ud-overview-grid{grid-template-columns:repeat(2,1fr);} }\r\n  .ud-overview-mini{border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;align-items:center;gap:11px;}\r\n  .ud-overview-mini-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}\r\n  .ud-overview-mini-label{font-size:11px;font-weight:600;color:var(--muted);}\r\n  .ud-overview-mini-value{font-size:15px;font-weight:800;color:var(--heading);}";
-const adminDashboardMarkup = "\u003cdiv class=\"app\"\u003e\r\n\r\n  \u003c!-- Mobile overlay --\u003e\r\n  \u003cdiv class=\"sidebar-overlay\" id=\"sidebarOverlay\"\u003e\u003c/div\u003e\r\n\r\n  \u003c!-- â•â•â•â•â•â•â•â•â•â• SIDEBAR â•â•â•â•â•â•â•â•â•â• --\u003e\r\n  \u003caside class=\"sidebar\" id=\"sidebar\"\u003e\r\n    \u003cdiv class=\"sidebar-logo\"\u003e\r\n      \u003csvg width=\"30\" height=\"30\" viewBox=\"0 0 30 30\" fill=\"none\"\u003e\r\n        \u003cpath d=\"M15 4L27 10L15 16L3 10L15 4Z\" fill=\"#4927EF\"/\u003e\r\n        \u003cpath d=\"M8 13.5V19.5C8 22.5 11.1 25 15 25C18.9 25 22 22.5 22 19.5V13.5L15 16L8 13.5Z\" fill=\"#3A1ECC\"/\u003e\r\n        \u003ccircle cx=\"25.5\" cy=\"11\" r=\"1.8\" fill=\"#F59E0B\"/\u003e\r\n      \u003c/svg\u003e\r\n      \u003cspan class=\"sidebar-logo-text\"\u003eScholar\u003cspan\u003eHub\u003c/span\u003e\u003c/span\u003e\r\n    \u003c/div\u003e\r\n\r\n    \u003cul class=\"nav-list\" id=\"navList\"\u003e\r\n      \u003cli\u003e\u003cbutton class=\"nav-item active\" data-page=\"dashboard\"\u003e\r\n        \u003csvg width=\"18\" height=\"18\" viewBox=\"0 0 18 18\" fill=\"none\"\u003e\u003crect x=\"2\" y=\"2\" width=\"6\" height=\"6\" rx=\"1.5\" fill=\"currentColor\"/\u003e\u003crect x=\"10\" y=\"2\" width=\"6\" height=\"6\" rx=\"1.5\" fill=\"currentColor\"/\u003e\u003crect x=\"2\" y=\"10\" width=\"6\" height=\"6\" rx=\"1.5\" fill=\"currentColor\"/\u003e\u003crect x=\"10\" y=\"10\" width=\"6\" height=\"6\" rx=\"1.5\" fill=\"currentColor\"/\u003e\u003c/svg\u003e\r\n        Dashboard\r\n      \u003c/button\u003e\u003c/li\u003e\r\n    \u003c/ul\u003e\r\n\r\n    \u003cdiv class=\"secure-panel\"\u003e\r\n      \u003cdiv class=\"secure-icon\"\u003e\r\n        \u003csvg width=\"26\" height=\"26\" viewBox=\"0 0 26 26\" fill=\"none\"\u003e\u003cpath d=\"M13 3l8 3v5c0 5.4-3.4 8.8-8 10-4.6-1.2-8-4.6-8-10V6l8-3Z\" fill=\"#4927EF\"/\u003e\u003cpath d=\"M9.5 13l2.3 2.3L17 10\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/\u003e\u003c/svg\u003e\r\n      \u003c/div\u003e\r\n      \u003cdiv class=\"secure-title\"\u003eSecure Admin Panel\u003c/div\u003e\r\n      \u003cdiv class=\"secure-text\"\u003eYour data is safe and protected\u003c/div\u003e\r\n    \u003c/div\u003e\r\n  \u003c/aside\u003e\r\n\r\n  \u003c!-- â•â•â•â•â•â•â•â•â•â• MAIN â•â•â•â•â•â•â•â•â•â• --\u003e\r\n  \u003cmain class=\"main\"\u003e\r\n\r\n    \u003c!-- Topbar --\u003e\r\n    \u003cdiv class=\"topbar\"\u003e\r\n      \u003cbutton class=\"menu-toggle icon-btn\" id=\"menuToggle\" style=\"display:flex;width:42px;height:42px;\"\u003e\r\n        \u003csvg width=\"20\" height=\"20\" viewBox=\"0 0 20 20\" fill=\"none\"\u003e\u003cpath d=\"M3 6h14M3 10h14M3 14h14\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/\u003e\u003c/svg\u003e\r\n      \u003c/button\u003e\r\n\r\n      \u003cdiv class=\"search-wrap\"\u003e\r\n        \u003cspan class=\"search-icon\"\u003e\r\n          \u003csvg width=\"17\" height=\"17\" viewBox=\"0 0 17 17\" fill=\"none\"\u003e\u003ccircle cx=\"7.5\" cy=\"7.5\" r=\"5.2\" stroke=\"currentColor\" stroke-width=\"1.6\"/\u003e\u003cpath d=\"M11.7 11.7L15 15\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\"/\u003e\u003c/svg\u003e\r\n        \u003c/span\u003e\r\n        \u003cinput type=\"text\" class=\"search-input\" id=\"searchInput\" placeholder=\"Search by name, email, mobile or user ID...\"/\u003e\r\n      \u003c/div\u003e\r\n\r\n      \u003cdiv style=\"position:relative;\"\u003e\r\n        \u003cbutton class=\"filter-btn\" id=\"filterBtn\"\u003e\r\n          \u003csvg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" fill=\"none\"\u003e\u003cpath d=\"M2 3h12l-4.5 5.5V13L7 11.5V8.5L2 3Z\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linejoin=\"round\"/\u003e\u003c/svg\u003e\r\n          Filters\r\n          \u003cspan id=\"filterCount\" style=\"display:none;background:var(--primary);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:99px;margin-left:2px;\"\u003e\u003c/span\u003e\r\n        \u003c/button\u003e\r\n        \u003cdiv class=\"filters-panel\" id=\"filtersPanel\"\u003e\r\n          \u003cdiv class=\"filters-panel-title\"\u003eStatus\u003c/div\u003e\r\n          \u003cdiv class=\"filter-chip-row\" id=\"statusChips\"\u003e\r\n            \u003cbutton class=\"filter-chip selected\" data-status=\"all\"\u003eAll\u003c/button\u003e\r\n            \u003cbutton class=\"filter-chip\" data-status=\"Active\"\u003eActive\u003c/button\u003e\r\n            \u003cbutton class=\"filter-chip\" data-status=\"Inactive\"\u003eInactive\u003c/button\u003e\r\n          \u003c/div\u003e\r\n          \u003cdiv class=\"filters-panel-title\"\u003eRegistered\u003c/div\u003e\r\n          \u003cdiv class=\"filter-chip-row\" id=\"dateChips\"\u003e\r\n            \u003cbutton class=\"filter-chip selected\" data-range=\"all\"\u003eAll time\u003c/button\u003e\r\n            \u003cbutton class=\"filter-chip\" data-range=\"7\"\u003eLast 7 days\u003c/button\u003e\r\n            \u003cbutton class=\"filter-chip\" data-range=\"30\"\u003eLast 30 days\u003c/button\u003e\r\n          \u003c/div\u003e\r\n          \u003cbutton class=\"filters-apply\" id=\"applyFilters\"\u003eApply Filters\u003c/button\u003e\r\n        \u003c/div\u003e\r\n      \u003c/div\u003e\r\n\r\n      \u003cdiv class=\"topbar-right\"\u003e\r\n        \u003cbutton class=\"bell-btn\" id=\"bellBtn\"\u003e\r\n          \u003csvg width=\"21\" height=\"21\" viewBox=\"0 0 21 21\" fill=\"none\"\u003e\u003cpath d=\"M10.5 2.5c-2.5 0-4.5 2-4.5 4.5v3l-1.8 3h12.6l-1.8-3v-3c0-2.5-2-4.5-4.5-4.5Z\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linejoin=\"round\"/\u003e\u003cpath d=\"M8.7 16c.3 1 1 1.5 1.8 1.5s1.5-.5 1.8-1.5\" stroke=\"currentColor\" stroke-width=\"1.5\"/\u003e\u003c/svg\u003e\r\n          \u003cspan class=\"bell-badge\"\u003e5\u003c/span\u003e\r\n        \u003c/button\u003e\r\n\r\n        \u003cdiv style=\"position:relative;\"\u003e\r\n          \u003cdiv class=\"admin-chip\" id=\"adminChip\"\u003e\r\n            \u003cdiv class=\"admin-avatar\"\u003eA\u003c/div\u003e\r\n            \u003cdiv class=\"admin-info\"\u003e\r\n              \u003cspan class=\"admin-name\"\u003eAdmin\u003c/span\u003e\r\n              \u003cspan class=\"admin-role\"\u003eSuper Admin\u003c/span\u003e\r\n            \u003c/div\u003e\r\n            \u003csvg width=\"14\" height=\"14\" viewBox=\"0 0 14 14\" fill=\"none\"\u003e\u003cpath d=\"M3.5 5.5L7 9l3.5-3.5\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/\u003e\u003c/svg\u003e\r\n          \u003c/div\u003e\r\n          \u003cdiv class=\"admin-dropdown\" id=\"adminDropdown\"\u003e\r\n            \u003cbutton class=\"dd-item\"\u003eðŸ‘¤ My Profile\u003c/button\u003e\r\n            \u003cbutton class=\"dd-item\"\u003eâš™ï¸ Account Settings\u003c/button\u003e\r\n            \u003cbutton class=\"dd-item\"\u003eðŸ”” Notification Prefs\u003c/button\u003e\r\n            \u003cbutton class=\"dd-item danger\"\u003eðŸšª Logout\u003c/button\u003e\r\n          \u003c/div\u003e\r\n        \u003c/div\u003e\r\n      \u003c/div\u003e\r\n    \u003c/div\u003e\r\n\r\n    \u003c!-- â•â•â•â•â•â•â•â•â•â• DASHBOARD PAGE â•â•â•â•â•â•â•â•â•â• --\u003e\r\n    \u003csection class=\"page-section active\" id=\"page-dashboard\"\u003e\r\n\r\n      \u003c!-- Stat cards --\u003e\r\n      \u003cdiv class=\"stats-row\"\u003e\r\n        \u003cdiv class=\"stat-card\"\u003e\r\n          \u003cdiv class=\"stat-top\"\u003e\r\n            \u003cdiv class=\"stat-icon\" style=\"background:#EEEEFD;\"\u003e\r\n              \u003csvg width=\"22\" height=\"22\" viewBox=\"0 0 22 22\" fill=\"none\"\u003e\u003ccircle cx=\"9\" cy=\"7.5\" r=\"3.3\" stroke=\"#4927EF\" stroke-width=\"1.7\"/\u003e\u003cpath d=\"M3 18c0-3.3 2.7-5.8 6-5.8s6 2.5 6 5.8\" stroke=\"#4927EF\" stroke-width=\"1.7\" stroke-linecap=\"round\"/\u003e\u003ccircle cx=\"15.5\" cy=\"8.5\" r=\"2.2\" stroke=\"#4927EF\" stroke-width=\"1.5\"/\u003e\u003cpath d=\"M13.5 18c0-2.3 1.2-4 3.5-4.3\" stroke=\"#4927EF\" stroke-width=\"1.5\" stroke-linecap=\"round\"/\u003e\u003c/svg\u003e\r\n            \u003c/div\u003e\r\n            \u003cspan class=\"stat-label\"\u003eTotal Users\u003c/span\u003e\r\n          \u003c/div\u003e\r\n          \u003cdiv class=\"stat-value\"\u003e1,248\u003c/div\u003e\r\n          \u003cdiv class=\"stat-growth\"\u003eâ†‘ 12.5% \u003cspan class=\"stat-growth-muted\"\u003efrom last month\u003c/span\u003e\u003c/div\u003e\r\n        \u003c/div\u003e\r\n\r\n        \u003cdiv class=\"stat-card\"\u003e\r\n          \u003cdiv class=\"stat-top\"\u003e\r\n            \u003cdiv class=\"stat-icon\" style=\"background:#E9FBF1;\"\u003e\r\n              \u003csvg width=\"22\" height=\"22\" viewBox=\"0 0 22 22\" fill=\"none\"\u003e\u003crect x=\"5\" y=\"3\" width=\"12\" height=\"16\" rx=\"2\" stroke=\"#16A34A\" stroke-width=\"1.6\"/\u003e\u003cpath d=\"M8 8h6M8 11h6M8 14h4\" stroke=\"#16A34A\" stroke-width=\"1.5\" stroke-linecap=\"round\"/\u003e\u003c/svg\u003e\r\n            \u003c/div\u003e\r\n            \u003cspan class=\"stat-label\"\u003eTotal Applications\u003c/span\u003e\r\n          \u003c/div\u003e\r\n          \u003cdiv class=\"stat-value\"\u003e3,562\u003c/div\u003e\r\n          \u003cdiv class=\"stat-growth\"\u003eâ†‘ 8.2% \u003cspan class=\"stat-growth-muted\"\u003efrom last month\u003c/span\u003e\u003c/div\u003e\r\n        \u003c/div\u003e\r\n\r\n        \u003cdiv class=\"stat-card\"\u003e\r\n          \u003cdiv class=\"stat-top\"\u003e\r\n            \u003cdiv class=\"stat-icon\" style=\"background:#FEF3E2;\"\u003e\r\n              \u003csvg width=\"22\" height=\"22\" viewBox=\"0 0 22 22\" fill=\"none\"\u003e\u003cpath d=\"M11 4L19 8L11 12L3 8L11 4Z\" stroke=\"#F59E0B\" stroke-width=\"1.6\" stroke-linejoin=\"round\"/\u003e\u003cpath d=\"M6.5 10v3.5c0 2 2 3.5 4.5 3.5s4.5-1.5 4.5-3.5V10\" stroke=\"#F59E0B\" stroke-width=\"1.6\"/\u003e\u003c/svg\u003e\r\n            \u003c/div\u003e\r\n            \u003cspan class=\"stat-label\"\u003eActive Scholarships\u003c/span\u003e\r\n          \u003c/div\u003e\r\n          \u003cdiv class=\"stat-value\"\u003e142\u003c/div\u003e\r\n          \u003cdiv class=\"stat-growth\"\u003eâ†‘ 5 \u003cspan class=\"stat-growth-muted\"\u003enew this week\u003c/span\u003e\u003c/div\u003e\r\n        \u003c/div\u003e\r\n\r\n        \u003cdiv class=\"stat-card\"\u003e\r\n          \u003cdiv class=\"stat-top\"\u003e\r\n            \u003cdiv class=\"stat-icon\" style=\"background:#FDEAF1;\"\u003e\r\n              \u003csvg width=\"22\" height=\"22\" viewBox=\"0 0 22 22\" fill=\"none\"\u003e\u003crect x=\"3\" y=\"5\" width=\"16\" height=\"12\" rx=\"2.5\" stroke=\"#EC4899\" stroke-width=\"1.6\"/\u003e\u003cpath d=\"M3 9h16\" stroke=\"#EC4899\" stroke-width=\"1.6\"/\u003e\u003ccircle cx=\"15\" cy=\"13\" r=\"1.3\" fill=\"#EC4899\"/\u003e\u003c/svg\u003e\r\n            \u003c/div\u003e\r\n            \u003cspan class=\"stat-label\"\u003eTotal Disbursed\u003c/span\u003e\r\n          \u003c/div\u003e\r\n          \u003cdiv class=\"stat-value\"\u003eâ‚¹2.45 Cr\u003c/div\u003e\r\n          \u003cdiv class=\"stat-growth\"\u003eâ†‘ 15.3% \u003cspan class=\"stat-growth-muted\"\u003efrom last month\u003c/span\u003e\u003c/div\u003e\r\n        \u003c/div\u003e\r\n\r\n        \u003cdiv class=\"stat-card\"\u003e\r\n          \u003cdiv class=\"stat-top\"\u003e\r\n            \u003cdiv class=\"stat-icon\" style=\"background:#EAF1FE;\"\u003e\r\n              \u003csvg width=\"22\" height=\"22\" viewBox=\"0 0 22 22\" fill=\"none\"\u003e\u003ccircle cx=\"9\" cy=\"8\" r=\"3.3\" stroke=\"#3B82F6\" stroke-width=\"1.7\"/\u003e\u003cpath d=\"M3 18c0-3.3 2.7-5.8 6-5.8s6 2.5 6 5.8\" stroke=\"#3B82F6\" stroke-width=\"1.7\" stroke-linecap=\"round\"/\u003e\u003cpath d=\"M16.5 7v4M14.5 9h4\" stroke=\"#3B82F6\" stroke-width=\"1.7\" stroke-linecap=\"round\"/\u003e\u003c/svg\u003e\r\n            \u003c/div\u003e\r\n            \u003cspan class=\"stat-label\"\u003eNew Users \u003cspan style=\"font-weight:400;color:var(--muted);\"\u003e(This Week)\u003c/span\u003e\u003c/span\u003e\r\n          \u003c/div\u003e\r\n          \u003cdiv class=\"stat-value\"\u003e86\u003c/div\u003e\r\n          \u003cdiv class=\"stat-growth\"\u003eâ†‘ 18.4% \u003cspan class=\"stat-growth-muted\"\u003efrom last week\u003c/span\u003e\u003c/div\u003e\r\n        \u003c/div\u003e\r\n      \u003c/div\u003e\r\n\r\n      \u003c!-- Table card --\u003e\r\n      \u003cdiv class=\"table-card\"\u003e\r\n        \u003cdiv class=\"table-card-head\"\u003e\r\n          \u003cspan class=\"table-title\"\u003eAll Registered Users\u003c/span\u003e\r\n          \u003cbutton class=\"export-btn\" id=\"exportBtn\"\u003e\r\n            \u003csvg width=\"15\" height=\"15\" viewBox=\"0 0 15 15\" fill=\"none\"\u003e\u003cpath d=\"M7.5 1.5v8M4.5 6.5l3 3 3-3\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/\u003e\u003cpath d=\"M2 11v1.5A1.5 1.5 0 003.5 14h8a1.5 1.5 0 001.5-1.5V11\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\"/\u003e\u003c/svg\u003e\r\n            Export\r\n          \u003c/button\u003e\r\n        \u003c/div\u003e\r\n\r\n        \u003cdiv class=\"table-scroll\"\u003e\r\n          \u003ctable\u003e\r\n            \u003cthead\u003e\r\n              \u003ctr\u003e\r\n                \u003cth style=\"width:42px;\"\u003e\u003cinput type=\"checkbox\" class=\"cb\" id=\"selectAll\"/\u003e\u003c/th\u003e\r\n                \u003cth\u003eUser ID\u003c/th\u003e\r\n                \u003cth class=\"sortable\" data-sort=\"name\"\u003e\u003cspan class=\"th-flex\"\u003eName \u003csvg class=\"sort-icon\" width=\"11\" height=\"11\" viewBox=\"0 0 11 11\" fill=\"none\"\u003e\u003cpath d=\"M2 4l3.5-3 3.5 3M2 7l3.5 3 3.5-3\" stroke=\"currentColor\" stroke-width=\"1.3\"/\u003e\u003c/svg\u003e\u003c/span\u003e\u003c/th\u003e\r\n                \u003cth class=\"sortable\" data-sort=\"email\"\u003e\u003cspan class=\"th-flex\"\u003eEmail \u003csvg class=\"sort-icon\" width=\"11\" height=\"11\" viewBox=\"0 0 11 11\" fill=\"none\"\u003e\u003cpath d=\"M2 4l3.5-3 3.5 3M2 7l3.5 3 3.5-3\" stroke=\"currentColor\" stroke-width=\"1.3\"/\u003e\u003c/svg\u003e\u003c/span\u003e\u003c/th\u003e\r\n                \u003cth class=\"sortable\" data-sort=\"mobile\"\u003e\u003cspan class=\"th-flex\"\u003eMobile \u003csvg class=\"sort-icon\" width=\"11\" height=\"11\" viewBox=\"0 0 11 11\" fill=\"none\"\u003e\u003cpath d=\"M2 4l3.5-3 3.5 3M2 7l3.5 3 3.5-3\" stroke=\"currentColor\" stroke-width=\"1.3\"/\u003e\u003c/svg\u003e\u003c/span\u003e\u003c/th\u003e\r\n                \u003cth class=\"sortable\" data-sort=\"date\"\u003e\u003cspan class=\"th-flex\"\u003eRegistered On \u003csvg class=\"sort-icon\" width=\"11\" height=\"11\" viewBox=\"0 0 11 11\" fill=\"none\"\u003e\u003cpath d=\"M2 4l3.5-3 3.5 3M2 7l3.5 3 3.5-3\" stroke=\"currentColor\" stroke-width=\"1.3\"/\u003e\u003c/svg\u003e\u003c/span\u003e\u003c/th\u003e\r\n                \u003cth class=\"sortable\" data-sort=\"status\"\u003e\u003cspan class=\"th-flex\"\u003eStatus \u003csvg class=\"sort-icon\" width=\"11\" height=\"11\" viewBox=\"0 0 11 11\" fill=\"none\"\u003e\u003cpath d=\"M2 4l3.5-3 3.5 3M2 7l3.5 3 3.5-3\" stroke=\"currentColor\" stroke-width=\"1.3\"/\u003e\u003c/svg\u003e\u003c/span\u003e\u003c/th\u003e\r\n                \u003cth\u003eAction\u003c/th\u003e\r\n              \u003c/tr\u003e\r\n            \u003c/thead\u003e\r\n            \u003ctbody id=\"tableBody\"\u003e\u003c/tbody\u003e\r\n          \u003c/table\u003e\r\n        \u003c/div\u003e\r\n\r\n        \u003cdiv class=\"table-footer\"\u003e\r\n          \u003cspan class=\"showing-text\" id=\"showingText\"\u003e\u003c/span\u003e\r\n          \u003cdiv class=\"pagination\" id=\"pagination\"\u003e\u003c/div\u003e\r\n        \u003c/div\u003e\r\n      \u003c/div\u003e\r\n    \u003c/section\u003e\r\n\r\n    \u003c!-- â•â•â•â•â•â•â•â•â•â• USER DETAILS PAGE (3-column) â•â•â•â•â•â•â•â•â•â• --\u003e\r\n    \u003csection class=\"page-section\" id=\"page-users\"\u003e\r\n      \u003cdiv class=\"ud-breadcrumb\"\u003e\r\n        \u003cspan class=\"ud-crumb\" id=\"crumbUsers\"\u003eUsers\u003c/span\u003e\r\n        \u003csvg width=\"13\" height=\"13\" viewBox=\"0 0 13 13\" fill=\"none\"\u003e\u003cpath d=\"M5 3l4 3.5L5 10\" stroke=\"#9498B3\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/\u003e\u003c/svg\u003e\r\n        \u003cspan class=\"ud-crumb\" id=\"crumbDetail\"\u003eUser Details\u003c/span\u003e\r\n        \u003csvg width=\"13\" height=\"13\" viewBox=\"0 0 13 13\" fill=\"none\"\u003e\u003cpath d=\"M5 3l4 3.5L5 10\" stroke=\"#9498B3\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/\u003e\u003c/svg\u003e\r\n        \u003cspan class=\"ud-crumb current\" id=\"crumbName\"\u003eUser\u003c/span\u003e\r\n      \u003c/div\u003e\r\n\r\n      \u003cdiv class=\"search-wrap ud-page-search\"\u003e\r\n        \u003cspan class=\"search-icon\"\u003e\r\n          \u003csvg width=\"17\" height=\"17\" viewBox=\"0 0 17 17\" fill=\"none\"\u003e\u003ccircle cx=\"7.5\" cy=\"7.5\" r=\"5.2\" stroke=\"currentColor\" stroke-width=\"1.6\"/\u003e\u003cpath d=\"M11.7 11.7L15 15\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\"/\u003e\u003c/svg\u003e\r\n        \u003c/span\u003e\r\n        \u003cinput type=\"text\" class=\"search-input\" id=\"udPageSearch\" placeholder=\"Search by name, email, or user ID...\"/\u003e\r\n        \u003cdiv class=\"ud-search-results\" id=\"udSearchResults\"\u003e\u003c/div\u003e\r\n      \u003c/div\u003e\r\n\r\n      \u003cdiv id=\"udDetailCard\"\u003e\u003c!-- filled dynamically --\u003e\u003c/div\u003e\r\n    \u003c/section\u003e\r\n    \u003c!-- â•â•â•â•â•â•â•â•â•â• PLACEHOLDER PAGES â•â•â•â•â•â•â•â•â•â• --\u003e\r\n    \u003csection class=\"page-section\" id=\"page-scholarships\"\u003e\r\n      \u003cdiv class=\"placeholder-page\"\u003e\r\n        \u003csvg width=\"64\" height=\"64\" viewBox=\"0 0 64 64\" fill=\"none\"\u003e\u003cpath d=\"M32 10l24 12-24 12-24-12 24-12Z\" stroke=\"#F59E0B\" stroke-width=\"2\" stroke-linejoin=\"round\"/\u003e\u003cpath d=\"M18 30v10c0 6 6 10 14 10s14-4 14-10V30\" stroke=\"#F59E0B\" stroke-width=\"2\"/\u003e\u003c/svg\u003e\r\n        \u003ch2\u003eScholarships\u003c/h2\u003e\r\n        \u003cp\u003eManage all available scholarship programs.\u003c/p\u003e\r\n      \u003c/div\u003e\r\n    \u003c/section\u003e\r\n    \u003csection class=\"page-section\" id=\"page-applications\"\u003e\r\n      \u003cdiv class=\"placeholder-page\"\u003e\r\n        \u003csvg width=\"64\" height=\"64\" viewBox=\"0 0 64 64\" fill=\"none\"\u003e\u003crect x=\"14\" y=\"8\" width=\"36\" height=\"48\" rx=\"4\" stroke=\"#16A34A\" stroke-width=\"2\"/\u003e\u003cpath d=\"M22 22h20M22 32h20M22 42h12\" stroke=\"#16A34A\" stroke-width=\"2\" stroke-linecap=\"round\"/\u003e\u003c/svg\u003e\r\n        \u003ch2\u003eApplications\u003c/h2\u003e\r\n        \u003cp\u003eReview and process scholarship applications.\u003c/p\u003e\r\n      \u003c/div\u003e\r\n    \u003c/section\u003e\r\n    \u003csection class=\"page-section\" id=\"page-disbursals\"\u003e\r\n      \u003cdiv class=\"placeholder-page\"\u003e\r\n        \u003csvg width=\"64\" height=\"64\" viewBox=\"0 0 64 64\" fill=\"none\"\u003e\u003crect x=\"8\" y=\"18\" width=\"48\" height=\"34\" rx=\"6\" stroke=\"#EC4899\" stroke-width=\"2\"/\u003e\u003cpath d=\"M8 28h48\" stroke=\"#EC4899\" stroke-width=\"2\"/\u003e\u003ccircle cx=\"46\" cy=\"40\" r=\"3\" fill=\"#EC4899\"/\u003e\u003c/svg\u003e\r\n        \u003ch2\u003eDisbursals\u003c/h2\u003e\r\n        \u003cp\u003eTrack scholarship fund disbursements.\u003c/p\u003e\r\n      \u003c/div\u003e\r\n    \u003c/section\u003e\r\n    \u003csection class=\"page-section\" id=\"page-payments\"\u003e\r\n      \u003cdiv class=\"placeholder-page\"\u003e\r\n        \u003csvg width=\"64\" height=\"64\" viewBox=\"0 0 64 64\" fill=\"none\"\u003e\u003cpath d=\"M18 12l-4 16M18 12h28l4 16M18 12l-2 4m32-4l2 4M12 28h40l4 24H8l4-24Z\" stroke=\"#4927EF\" stroke-width=\"2\" stroke-linejoin=\"round\"/\u003e\u003c/svg\u003e\r\n        \u003ch2\u003ePayments\u003c/h2\u003e\r\n        \u003cp\u003eView payment transactions and history.\u003c/p\u003e\r\n      \u003c/div\u003e\r\n    \u003c/section\u003e\r\n    \u003csection class=\"page-section\" id=\"page-reports\"\u003e\r\n      \u003cdiv class=\"placeholder-page\"\u003e\r\n        \u003csvg width=\"64\" height=\"64\" viewBox=\"0 0 64 64\" fill=\"none\"\u003e\u003cpath d=\"M12 50V30M28 50V14M44 50V24M52 50V18\" stroke=\"#4927EF\" stroke-width=\"3\" stroke-linecap=\"round\"/\u003e\u003c/svg\u003e\r\n        \u003ch2\u003eReports\u003c/h2\u003e\r\n        \u003cp\u003eAnalytics and insights for ScholarHub platform.\u003c/p\u003e\r\n      \u003c/div\u003e\r\n    \u003c/section\u003e\r\n    \u003csection class=\"page-section\" id=\"page-notifications\"\u003e\r\n      \u003cdiv class=\"placeholder-page\"\u003e\r\n        \u003csvg width=\"64\" height=\"64\" viewBox=\"0 0 64 64\" fill=\"none\"\u003e\u003cpath d=\"M32 8c-7 0-12.5 5.7-12.5 12.7V32L14 40h36l-5.5-8V20.7C44.5 13.7 39 8 32 8Z\" stroke=\"#F59E0B\" stroke-width=\"2\" stroke-linejoin=\"round\"/\u003e\u003cpath d=\"M27 48a5 5 0 0010 0\" stroke=\"#F59E0B\" stroke-width=\"2\"/\u003e\u003c/svg\u003e\r\n        \u003ch2\u003eNotifications\u003c/h2\u003e\r\n        \u003cp\u003eSystem and user notification settings.\u003c/p\u003e\r\n      \u003c/div\u003e\r\n    \u003c/section\u003e\r\n    \u003csection class=\"page-section\" id=\"page-settings\"\u003e\r\n      \u003cdiv class=\"placeholder-page\"\u003e\r\n        \u003csvg width=\"64\" height=\"64\" viewBox=\"0 0 64 64\" fill=\"none\"\u003e\u003ccircle cx=\"32\" cy=\"32\" r=\"9\" stroke=\"#6B7190\" stroke-width=\"2\"/\u003e\u003cpath d=\"M32 8v6M32 50v6M56 32h-6M14 32H8M47.6 16.4l-4.2 4.2M20.6 43.6l-4.2 4.2M47.6 47.6l-4.2-4.2M20.6 20.6l-4.2-4.2\" stroke=\"#6B7190\" stroke-width=\"2\" stroke-linecap=\"round\"/\u003e\u003c/svg\u003e\r\n        \u003ch2\u003eSettings\u003c/h2\u003e\r\n        \u003cp\u003eConfigure platform-wide settings and preferences.\u003c/p\u003e\r\n      \u003c/div\u003e\r\n    \u003c/section\u003e\r\n    \u003csection class=\"page-section\" id=\"page-audit\"\u003e\r\n      \u003cdiv class=\"placeholder-page\"\u003e\r\n        \u003csvg width=\"64\" height=\"64\" viewBox=\"0 0 64 64\" fill=\"none\"\u003e\u003cpath d=\"M32 8l22 8v16c0 14-9.5 23-22 27-12.5-4-22-13-22-27V16l22-8Z\" stroke=\"#4927EF\" stroke-width=\"2\" stroke-linejoin=\"round\"/\u003e\u003cpath d=\"M23 32l6 6 12-13\" stroke=\"#4927EF\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/\u003e\u003c/svg\u003e\r\n        \u003ch2\u003eAudit Logs\u003c/h2\u003e\r\n        \u003cp\u003eTrack all admin actions and system changes.\u003c/p\u003e\r\n      \u003c/div\u003e\r\n    \u003c/section\u003e\r\n\r\n  \u003c/main\u003e\r\n\u003c/div\u003e\r\n\r\n\u003cdiv class=\"toast\" id=\"toast\"\u003e\u003c/div\u003e";
-const adminDashboardScript = "(function(){\r\n  \u0027use strict\u0027;\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• MOCK DATA â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */\r\n  const AVATAR_COLORS = [\u0027#4927EF\u0027,\u0027#EC4899\u0027,\u0027#F59E0B\u0027,\u0027#16A34A\u0027,\u0027#3B82F6\u0027,\u0027#8B5CF6\u0027,\u0027#EF4444\u0027,\u0027#0EA5E9\u0027];\r\n  const FIRST_NAMES = [\u0027Arjun\u0027,\u0027Priya\u0027,\u0027Rohan\u0027,\u0027Neha\u0027,\u0027Aman\u0027,\u0027Kavya\u0027,\u0027Sahil\u0027,\u0027Ishita\u0027,\u0027Rahul\u0027,\u0027Sneha\u0027,\u0027Vikram\u0027,\u0027Pooja\u0027,\u0027Karan\u0027,\u0027Anjali\u0027,\u0027Dev\u0027,\u0027Meera\u0027,\u0027Aditya\u0027,\u0027Riya\u0027,\u0027Manish\u0027,\u0027Tanvi\u0027,\u0027Yash\u0027,\u0027Divya\u0027,\u0027Akash\u0027,\u0027Simran\u0027,\u0027Nitin\u0027,\u0027Bhavna\u0027,\u0027Rajat\u0027,\u0027Swati\u0027,\u0027Gaurav\u0027,\u0027Pallavi\u0027];\r\n  const LAST_NAMES = [\u0027Kumar\u0027,\u0027Sharma\u0027,\u0027Verma\u0027,\u0027Singh\u0027,\u0027Gupta\u0027,\u0027Patel\u0027,\u0027Khan\u0027,\u0027Roy\u0027,\u0027Mehta\u0027,\u0027Joshi\u0027,\u0027Reddy\u0027,\u0027Iyer\u0027,\u0027Nair\u0027,\u0027Chopra\u0027,\u0027Malhotra\u0027,\u0027Bhatt\u0027,\u0027Desai\u0027,\u0027Kapoor\u0027,\u0027Rao\u0027,\u0027Bose\u0027];\r\n\r\n  function seedRandom(seed){\r\n    let s = seed;\r\n    return function(){ s = (s*9301+49297)%233280; return s/233280; };\r\n  }\r\n  const rng = seedRandom(42);\r\n\r\n  function generateUsers(count){\r\n    const users = [];\r\n    for(let i=1;i\u003c=count;i++){\r\n      const fn = FIRST_NAMES[Math.floor(rng()*FIRST_NAMES.length)];\r\n      const ln = LAST_NAMES[Math.floor(rng()*LAST_NAMES.length)];\r\n      const name = `${fn} ${ln}`;\r\n      const email = `${fn.toLowerCase()}${rng()\u003e0.5?ln.toLowerCase():\u0027\u0027}${Math.floor(rng()*999)}@gmail.com`;\r\n      const mobile = \u00279\u0027 + Math.floor(100000000+rng()*899999999).toString().slice(0,9);\r\n      const day = Math.floor(1+rng()*28);\r\n      const monthIdx = Math.floor(rng()*6);\r\n      const months = [\u0027May 2024\u0027,\u0027Apr 2024\u0027,\u0027Mar 2024\u0027,\u0027Feb 2024\u0027,\u0027Jan 2024\u0027,\u0027Dec 2023\u0027];\r\n      const status = rng() \u003e 0.22 ? \u0027Active\u0027 : \u0027Inactive\u0027;\r\n      const dateObj = new Date(2024, 4-monthIdx, day);\r\n      users.push({\r\n        id: \u0027SHU\u0027 + String(i).padStart(3,\u00270\u0027),\r\n        name, email, mobile,\r\n        dateLabel: `${day} ${months[monthIdx]}`,\r\n        dateObj,\r\n        status,\r\n        color: AVATAR_COLORS[i % AVATAR_COLORS.length],\r\n        initials: (fn[0]+ln[0]).toUpperCase(),\r\n      });\r\n    }\r\n    return users;\r\n  }\r\n\r\n  const ALL_USERS = generateUsers(1248);\r\n  // Pin the first 8 to match the exact design reference\r\n  const PINNED = [\r\n    {id:\u0027SHU001\u0027,name:\u0027Arjun Kumar\u0027,email:\u0027arjun@gmail.com\u0027,mobile:\u00279876543210\u0027,dateLabel:\u002720 May 2024\u0027,dateObj:new Date(2024,4,20),status:\u0027Active\u0027,color:\u0027#3B82F6\u0027,initials:\u0027AK\u0027},\r\n    {id:\u0027SHU002\u0027,name:\u0027Priya Sharma\u0027,email:\u0027priya123@gmail.com\u0027,mobile:\u00278765432109\u0027,dateLabel:\u002719 May 2024\u0027,dateObj:new Date(2024,4,19),status:\u0027Active\u0027,color:\u0027#EC4899\u0027,initials:\u0027PS\u0027},\r\n    {id:\u0027SHU003\u0027,name:\u0027Rohan Verma\u0027,email:\u0027rohanv@gmail.com\u0027,mobile:\u00277654321098\u0027,dateLabel:\u002718 May 2024\u0027,dateObj:new Date(2024,4,18),status:\u0027Active\u0027,color:\u0027#F59E0B\u0027,initials:\u0027RV\u0027},\r\n    {id:\u0027SHU004\u0027,name:\u0027Neha Singh\u0027,email:\u0027neha.singh@gmail.com\u0027,mobile:\u00276543210987\u0027,dateLabel:\u002718 May 2024\u0027,dateObj:new Date(2024,4,18),status:\u0027Inactive\u0027,color:\u0027#EC4899\u0027,initials:\u0027NS\u0027},\r\n    {id:\u0027SHU005\u0027,name:\u0027Aman Gupta\u0027,email:\u0027aman.gupta@gmail.com\u0027,mobile:\u00275432109876\u0027,dateLabel:\u002717 May 2024\u0027,dateObj:new Date(2024,4,17),status:\u0027Active\u0027,color:\u0027#0EA5E9\u0027,initials:\u0027AG\u0027},\r\n    {id:\u0027SHU006\u0027,name:\u0027Kavya Patel\u0027,email:\u0027kavya.patel@gmail.com\u0027,mobile:\u00279321456789\u0027,dateLabel:\u002716 May 2024\u0027,dateObj:new Date(2024,4,16),status:\u0027Active\u0027,color:\u0027#8B5CF6\u0027,initials:\u0027KP\u0027},\r\n    {id:\u0027SHU007\u0027,name:\u0027Sahil Khan\u0027,email:\u0027sahil.khan@gmail.com\u0027,mobile:\u00278210987654\u0027,dateLabel:\u002716 May 2024\u0027,dateObj:new Date(2024,4,16),status:\u0027Inactive\u0027,color:\u0027#4927EF\u0027,initials:\u0027SK\u0027},\r\n    {id:\u0027SHU008\u0027,name:\u0027Ishita Roy\u0027,email:\u0027ishita.roy@gmail.com\u0027,mobile:\u00279123456780\u0027,dateLabel:\u002715 May 2024\u0027,dateObj:new Date(2024,4,15),status:\u0027Active\u0027,color:\u0027#3B82F6\u0027,initials:\u0027IR\u0027},\r\n  ];\r\n  ALL_USERS.splice(0,8,...PINNED);\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• EXTENDED PROFILE DATA (lazy, cached) â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */\r\n  const GENDERS = [\u0027Male\u0027,\u0027Female\u0027];\r\n  const CATEGORIES = [\u0027General\u0027,\u0027OBC\u0027,\u0027SC\u0027,\u0027ST\u0027,\u0027EWS\u0027];\r\n  const STATES = {\r\n    \u0027Uttar Pradesh\u0027:[\u0027Lucknow\u0027,\u0027Kanpur\u0027,\u0027Varanasi\u0027,\u0027Agra\u0027,\u0027Noida\u0027],\r\n    \u0027Maharashtra\u0027:[\u0027Mumbai\u0027,\u0027Pune\u0027,\u0027Nagpur\u0027,\u0027Nashik\u0027],\r\n    \u0027Karnataka\u0027:[\u0027Bengaluru\u0027,\u0027Mysuru\u0027,\u0027Hubli\u0027],\r\n    \u0027Delhi\u0027:[\u0027New Delhi\u0027],\r\n    \u0027Rajasthan\u0027:[\u0027Jaipur\u0027,\u0027Udaipur\u0027,\u0027Jodhpur\u0027],\r\n    \u0027Gujarat\u0027:[\u0027Ahmedabad\u0027,\u0027Surat\u0027,\u0027Vadodara\u0027],\r\n    \u0027Tamil Nadu\u0027:[\u0027Chennai\u0027,\u0027Coimbatore\u0027,\u0027Madurai\u0027],\r\n    \u0027West Bengal\u0027:[\u0027Kolkata\u0027,\u0027Howrah\u0027],\r\n  };\r\n  const BLOOD_GROUPS = [\u0027A+\u0027,\u0027A-\u0027,\u0027B+\u0027,\u0027B-\u0027,\u0027O+\u0027,\u0027O-\u0027,\u0027AB+\u0027,\u0027AB-\u0027];\r\n  const MARITAL = [\u0027Single\u0027,\u0027Married\u0027];\r\n  const profileCache = {};\r\n\r\n  function getExtendedProfile(u){\r\n    if(profileCache[u.id]) return profileCache[u.id];\r\n    const r = seedRandom(u.id.charCodeAt(3)*97 + u.id.charCodeAt(4)*13 + u.id.charCodeAt(5)*7 + 11);\r\n    const stateNames = Object.keys(STATES);\r\n    const state = stateNames[Math.floor(r()*stateNames.length)];\r\n    const cities = STATES[state];\r\n    const city = cities[Math.floor(r()*cities.length)];\r\n    const dobYear = 1999 + Math.floor(r()*7);\r\n    const dobDay = 1 + Math.floor(r()*28);\r\n    const dobMonths = [\u0027Jan\u0027,\u0027Feb\u0027,\u0027Mar\u0027,\u0027Apr\u0027,\u0027May\u0027,\u0027Jun\u0027,\u0027Jul\u0027,\u0027Aug\u0027,\u0027Sep\u0027,\u0027Oct\u0027,\u0027Nov\u0027,\u0027Dec\u0027];\r\n    const dobMonth = dobMonths[Math.floor(r()*12)];\r\n    const altMobile = \u00279\u0027 + Math.floor(100000000+r()*899999999).toString().slice(0,9);\r\n    const houseNo = 1+Math.floor(r()*500);\r\n    const pin = 110000 + Math.floor(r()*99999);\r\n    const fatherFirst = FIRST_NAMES[Math.floor(r()*FIRST_NAMES.length)];\r\n    const motherFirst = [\u0027Sunita\u0027,\u0027Geeta\u0027,\u0027Rekha\u0027,\u0027Anita\u0027,\u0027Kavita\u0027,\u0027Pooja\u0027,\u0027Meena\u0027,\u0027Suman\u0027][Math.floor(r()*8)];\r\n    const lastName = u.name.split(\u0027 \u0027).slice(-1)[0];\r\n\r\n    const profile = {\r\n      fatherName: `${fatherFirst} ${lastName}`,\r\n      motherName: `${motherFirst} ${lastName}`,\r\n      dob: `${dobDay} ${dobMonth} ${dobYear}`,\r\n      gender: GENDERS[Math.floor(r()*2)],\r\n      nationality: \u0027Indian\u0027,\r\n      category: CATEGORIES[Math.floor(r()*CATEGORIES.length)],\r\n      state, city,\r\n      address: `${houseNo}, MG Road, ${city}, ${state} - ${pin}`,\r\n      aadhaar: `XXXX XXXX ${1000+Math.floor(r()*9000)}`,\r\n      bloodGroup: BLOOD_GROUPS[Math.floor(r()*BLOOD_GROUPS.length)],\r\n      altMobile,\r\n      permanentAddress: `${houseNo+1}, Ashok Nagar, ${city}, ${state} - ${pin+11}`,\r\n      maritalStatus: MARITAL[Math.floor(r()*2)],\r\n      emergencyContact: `${fatherFirst} ${lastName} (Father) - ${u.mobile}`,\r\n      regTime: `${u.dateLabel} at ${(8+Math.floor(r()*4))}:${Math.floor(r()*6)}0 AM`,\r\n    };\r\n    profileCache[u.id] = profile;\r\n    return profile;\r\n  }\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• STATE â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */\r\n  let state = {\r\n    search: \u0027\u0027,\r\n    statusFilter: \u0027all\u0027,\r\n    dateRange: \u0027all\u0027,\r\n    sortKey: null,\r\n    sortDir: \u0027asc\u0027,\r\n    page: 1,\r\n    perPage: 8,\r\n    selected: new Set(),\r\n  };\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• DOM REFS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */\r\n  const tableBody   = document.getElementById(\u0027tableBody\u0027);\r\n  const showingText = document.getElementById(\u0027showingText\u0027);\r\n  const paginationEl= document.getElementById(\u0027pagination\u0027);\r\n  const searchInput = document.getElementById(\u0027searchInput\u0027);\r\n  const selectAllCb = document.getElementById(\u0027selectAll\u0027);\r\n  const toast       = document.getElementById(\u0027toast\u0027);\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• FILTER + SORT + PAGINATE â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */\r\n  function getFilteredUsers(){\r\n    let result = ALL_USERS.slice();\r\n\r\n    if(state.search.trim()){\r\n      const q = state.search.trim().toLowerCase();\r\n      result = result.filter(u =\u003e\r\n        u.name.toLowerCase().includes(q) ||\r\n        u.email.toLowerCase().includes(q) ||\r\n        u.mobile.includes(q) ||\r\n        u.id.toLowerCase().includes(q)\r\n      );\r\n    }\r\n\r\n    if(state.statusFilter !== \u0027all\u0027){\r\n      result = result.filter(u =\u003e u.status === state.statusFilter);\r\n    }\r\n\r\n    if(state.dateRange !== \u0027all\u0027){\r\n      const days = parseInt(state.dateRange,10);\r\n      const cutoff = new Date(2024,4,20);\r\n      cutoff.setDate(cutoff.getDate()-days);\r\n      result = result.filter(u =\u003e u.dateObj \u003e= cutoff);\r\n    }\r\n\r\n    if(state.sortKey){\r\n      result.sort((a,b)=\u003e{\r\n        let av, bv;\r\n        switch(state.sortKey){\r\n          case \u0027name\u0027: av=a.name; bv=b.name; break;\r\n          case \u0027email\u0027: av=a.email; bv=b.email; break;\r\n          case \u0027mobile\u0027: av=a.mobile; bv=b.mobile; break;\r\n          case \u0027date\u0027: av=a.dateObj.getTime(); bv=b.dateObj.getTime(); break;\r\n          case \u0027status\u0027: av=a.status; bv=b.status; break;\r\n          default: av=\u0027\u0027; bv=\u0027\u0027;\r\n        }\r\n        if(av\u003cbv) return state.sortDir===\u0027asc\u0027?-1:1;\r\n        if(av\u003ebv) return state.sortDir===\u0027asc\u0027?1:-1;\r\n        return 0;\r\n      });\r\n    }\r\n\r\n    return result;\r\n  }\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• RENDER TABLE â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */\r\n  function render(){\r\n    const filtered = getFilteredUsers();\r\n    const total = filtered.length;\r\n    const totalPages = Math.max(1, Math.ceil(total/state.perPage));\r\n    if(state.page \u003e totalPages) state.page = totalPages;\r\n    const start = (state.page-1)*state.perPage;\r\n    const pageUsers = filtered.slice(start, start+state.perPage);\r\n\r\n    // Empty state\r\n    if(pageUsers.length === 0){\r\n      tableBody.innerHTML = `\u003ctr\u003e\u003ctd colspan=\"8\"\u003e\r\n        \u003cdiv class=\"empty-state\"\u003e\r\n          \u003csvg width=\"48\" height=\"48\" viewBox=\"0 0 48 48\" fill=\"none\"\u003e\u003ccircle cx=\"22\" cy=\"22\" r=\"14\" stroke=\"#9498B3\" stroke-width=\"2.5\"/\u003e\u003cpath d=\"M32 32l8 8\" stroke=\"#9498B3\" stroke-width=\"2.5\" stroke-linecap=\"round\"/\u003e\u003c/svg\u003e\r\n          \u003cp\u003eNo users found matching your search/filters.\u003c/p\u003e\r\n        \u003c/div\u003e\r\n      \u003c/td\u003e\u003c/tr\u003e`;\r\n    } else {\r\n      tableBody.innerHTML = pageUsers.map(u =\u003e `\r\n        \u003ctr\u003e\r\n          \u003ctd\u003e\u003cinput type=\"checkbox\" class=\"cb row-cb\" data-id=\"${u.id}\" ${state.selected.has(u.id)?\u0027checked\u0027:\u0027\u0027}/\u003e\u003c/td\u003e\r\n          \u003ctd style=\"font-weight:600;color:var(--subtitle);\"\u003e${u.id}\u003c/td\u003e\r\n          \u003ctd\u003e\r\n            \u003cdiv class=\"user-cell\"\u003e\r\n              \u003cdiv class=\"avatar\" style=\"background:${u.color}\"\u003e${u.initials}\u003c/div\u003e\r\n              \u003cspan class=\"user-name\"\u003e${u.name}\u003c/span\u003e\r\n            \u003c/div\u003e\r\n          \u003c/td\u003e\r\n          \u003ctd style=\"color:var(--subtitle)\"\u003e${u.email}\u003c/td\u003e\r\n          \u003ctd style=\"color:var(--subtitle)\"\u003e${u.mobile}\u003c/td\u003e\r\n          \u003ctd style=\"color:var(--subtitle)\"\u003e${u.dateLabel}\u003c/td\u003e\r\n          \u003ctd\u003e\u003cspan class=\"status-pill ${u.status===\u0027Active\u0027?\u0027active\u0027:\u0027inactive\u0027}\"\u003e${u.status}\u003c/span\u003e\u003c/td\u003e\r\n          \u003ctd\u003e\r\n            \u003cdiv class=\"action-cell\"\u003e\r\n              \u003cbutton class=\"icon-btn view-btn\" data-id=\"${u.id}\" title=\"View user\"\u003e\r\n                \u003csvg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" fill=\"none\"\u003e\u003cpath d=\"M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5Z\" stroke=\"currentColor\" stroke-width=\"1.5\"/\u003e\u003ccircle cx=\"8\" cy=\"8\" r=\"2\" stroke=\"currentColor\" stroke-width=\"1.5\"/\u003e\u003c/svg\u003e\r\n              \u003c/button\u003e\r\n              \u003cdiv style=\"position:relative;\"\u003e\r\n                \u003cbutton class=\"icon-btn muted menu-btn\" data-id=\"${u.id}\" title=\"More\"\u003e\r\n                  \u003csvg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" fill=\"none\"\u003e\u003ccircle cx=\"8\" cy=\"3.5\" r=\"1.2\" fill=\"currentColor\"/\u003e\u003ccircle cx=\"8\" cy=\"8\" r=\"1.2\" fill=\"currentColor\"/\u003e\u003ccircle cx=\"8\" cy=\"12.5\" r=\"1.2\" fill=\"currentColor\"/\u003e\u003c/svg\u003e\r\n                \u003c/button\u003e\r\n                \u003cdiv class=\"row-menu\" data-menu=\"${u.id}\"\u003e\r\n                  \u003cbutton class=\"row-action\" data-action=\"edit\" data-id=\"${u.id}\"\u003eâœï¸ Edit User\u003c/button\u003e\r\n                  \u003cbutton class=\"row-action\" data-action=\"email\" data-id=\"${u.id}\"\u003eâœ‰ï¸ Send Email\u003c/button\u003e\r\n                  \u003cbutton class=\"row-action\" data-action=\"toggle\" data-id=\"${u.id}\"\u003eðŸ” ${u.status===\u0027Active\u0027?\u0027Deactivate\u0027:\u0027Activate\u0027}\u003c/button\u003e\r\n                  \u003cbutton class=\"row-action danger\" data-action=\"delete\" data-id=\"${u.id}\"\u003eðŸ—‘ï¸ Delete User\u003c/button\u003e\r\n                \u003c/div\u003e\r\n              \u003c/div\u003e\r\n            \u003c/div\u003e\r\n          \u003c/td\u003e\r\n        \u003c/tr\u003e\r\n      `).join(\u0027\u0027);\r\n    }\r\n\r\n    showingText.textContent = total === 0\r\n      ? \u0027No users found\u0027\r\n      : `Showing ${start+1} to ${Math.min(start+state.perPage,total)} of ${total.toLocaleString()} users`;\r\n\r\n    renderPagination(totalPages);\r\n    updateSortIcons();\r\n    selectAllCb.checked = pageUsers.length\u003e0 \u0026\u0026 pageUsers.every(u=\u003estate.selected.has(u.id));\r\n  }\r\n\r\n  function renderPagination(totalPages){\r\n    let html = `\u003cbutton class=\"page-btn\" id=\"prevPage\" ${state.page===1?\u0027disabled\u0027:\u0027\u0027} aria-label=\"Previous page\"\u003e\r\n      \u003csvg width=\"14\" height=\"14\" viewBox=\"0 0 14 14\" fill=\"none\"\u003e\u003cpath d=\"M9 11L5 7l4-4\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/\u003e\u003c/svg\u003e\r\n    \u003c/button\u003e`;\r\n\r\n    const pages = [];\r\n    if(totalPages\u003c=6){\r\n      for(let i=1;i\u003c=totalPages;i++) pages.push(i);\r\n    } else {\r\n      pages.push(1,2,3,\u0027...\u0027,totalPages);\r\n    }\r\n\r\n    pages.forEach(p=\u003e{\r\n      if(p===\u0027...\u0027){\r\n        html += `\u003cspan class=\"page-dots\"\u003eâ€¦\u003c/span\u003e`;\r\n      } else {\r\n        html += `\u003cbutton class=\"page-btn ${p===state.page?\u0027active\u0027:\u0027\u0027}\" data-page=\"${p}\"\u003e${p}\u003c/button\u003e`;\r\n      }\r\n    });\r\n\r\n    html += `\u003cbutton class=\"page-btn\" id=\"nextPage\" ${state.page===totalPages?\u0027disabled\u0027:\u0027\u0027} aria-label=\"Next page\"\u003e\r\n      \u003csvg width=\"14\" height=\"14\" viewBox=\"0 0 14 14\" fill=\"none\"\u003e\u003cpath d=\"M5 3l4 4-4 4\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/\u003e\u003c/svg\u003e\r\n    \u003c/button\u003e`;\r\n\r\n    paginationEl.innerHTML = html;\r\n\r\n    document.getElementById(\u0027prevPage\u0027).addEventListener(\u0027click\u0027, ()=\u003e{ if(state.page\u003e1){state.page--; render();} });\r\n    document.getElementById(\u0027nextPage\u0027).addEventListener(\u0027click\u0027, ()=\u003e{ if(state.page\u003ctotalPages){state.page++; render();} });\r\n    paginationEl.querySelectorAll(\u0027[data-page]\u0027).forEach(btn=\u003e{\r\n      btn.addEventListener(\u0027click\u0027, ()=\u003e{ state.page = parseInt(btn.dataset.page,10); render(); });\r\n    });\r\n  }\r\n\r\n  function updateSortIcons(){\r\n    document.querySelectorAll(\u0027th.sortable\u0027).forEach(th=\u003e{\r\n      th.classList.toggle(\u0027sorted\u0027, th.dataset.sort===state.sortKey);\r\n      th.classList.toggle(\u0027desc\u0027, th.dataset.sort===state.sortKey \u0026\u0026 state.sortDir===\u0027desc\u0027);\r\n    });\r\n  }\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• EVENT DELEGATION (table body) â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */\r\n  tableBody.addEventListener(\u0027click\u0027, (e)=\u003e{\r\n    const viewBtn = e.target.closest(\u0027.view-btn\u0027);\r\n    const menuBtn = e.target.closest(\u0027.menu-btn\u0027);\r\n    const rowAction = e.target.closest(\u0027.row-action\u0027);\r\n    const rowCb = e.target.closest(\u0027.row-cb\u0027);\r\n\r\n    if(viewBtn){\r\n      const u = ALL_USERS.find(x=\u003ex.id===viewBtn.dataset.id);\r\n      openUserDetails(u.id);\r\n      return;\r\n    }\r\n    if(menuBtn){\r\n      e.stopPropagation();\r\n      const id = menuBtn.dataset.id;\r\n      document.querySelectorAll(\u0027.row-menu\u0027).forEach(m=\u003e{\r\n        if(m.dataset.menu!==id) m.classList.remove(\u0027open\u0027);\r\n      });\r\n      const menu = document.querySelector(`.row-menu[data-menu=\"${id}\"]`);\r\n      menu.classList.toggle(\u0027open\u0027);\r\n      return;\r\n    }\r\n    if(rowAction){\r\n      const id = rowAction.dataset.id;\r\n      const action = rowAction.dataset.action;\r\n      const u = ALL_USERS.find(x=\u003ex.id===id);\r\n      if(action===\u0027edit\u0027) showToast(`âœï¸ Editing ${u.name}`);\r\n      if(action===\u0027email\u0027) showToast(`âœ‰ï¸ Email sent to ${u.email}`);\r\n      if(action===\u0027toggle\u0027){\r\n        u.status = u.status===\u0027Active\u0027?\u0027Inactive\u0027:\u0027Active\u0027;\r\n        showToast(`ðŸ” ${u.name} is now ${u.status}`);\r\n        render();\r\n      }\r\n      if(action===\u0027delete\u0027){\r\n        if(confirm(`Delete ${u.name}? This cannot be undone.`)){\r\n          const idx = ALL_USERS.findIndex(x=\u003ex.id===id);\r\n          ALL_USERS.splice(idx,1);\r\n          showToast(`ðŸ—‘ï¸ ${u.name} deleted`);\r\n          render();\r\n        }\r\n      }\r\n      document.querySelectorAll(\u0027.row-menu\u0027).forEach(m=\u003em.classList.remove(\u0027open\u0027));\r\n      return;\r\n    }\r\n    if(rowCb){\r\n      const id = rowCb.dataset.id;\r\n      if(rowCb.checked) state.selected.add(id); else state.selected.delete(id);\r\n    }\r\n  });\r\n\r\n  document.addEventListener(\u0027click\u0027, ()=\u003e{\r\n    document.querySelectorAll(\u0027.row-menu\u0027).forEach(m=\u003em.classList.remove(\u0027open\u0027));\r\n  });\r\n\r\n  selectAllCb.addEventListener(\u0027change\u0027, ()=\u003e{\r\n    const filtered = getFilteredUsers();\r\n    const start = (state.page-1)*state.perPage;\r\n    const pageUsers = filtered.slice(start,start+state.perPage);\r\n    pageUsers.forEach(u=\u003e{\r\n      if(selectAllCb.checked) state.selected.add(u.id); else state.selected.delete(u.id);\r\n    });\r\n    render();\r\n  });\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• SEARCH â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */\r\n  let searchDebounce;\r\n  searchInput.addEventListener(\u0027input\u0027, ()=\u003e{\r\n    clearTimeout(searchDebounce);\r\n    searchDebounce = setTimeout(()=\u003e{\r\n      state.search = searchInput.value;\r\n      state.page = 1;\r\n      render();\r\n    }, 220);\r\n  });\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• SORT â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */\r\n  document.querySelectorAll(\u0027th.sortable\u0027).forEach(th=\u003e{\r\n    th.addEventListener(\u0027click\u0027, ()=\u003e{\r\n      const key = th.dataset.sort;\r\n      if(state.sortKey===key){\r\n        state.sortDir = state.sortDir===\u0027asc\u0027?\u0027desc\u0027:\u0027asc\u0027;\r\n      } else {\r\n        state.sortKey = key;\r\n        state.sortDir = \u0027asc\u0027;\r\n      }\r\n      render();\r\n    });\r\n  });\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• FILTERS PANEL â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */\r\n  const filterBtn = document.getElementById(\u0027filterBtn\u0027);\r\n  const filtersPanel = document.getElementById(\u0027filtersPanel\u0027);\r\n  const filterCount = document.getElementById(\u0027filterCount\u0027);\r\n\r\n  filterBtn.addEventListener(\u0027click\u0027, (e)=\u003e{\r\n    e.stopPropagation();\r\n    filtersPanel.classList.toggle(\u0027open\u0027);\r\n  });\r\n  document.addEventListener(\u0027click\u0027, (e)=\u003e{\r\n    if(!filtersPanel.contains(e.target) \u0026\u0026 e.target!==filterBtn){\r\n      filtersPanel.classList.remove(\u0027open\u0027);\r\n    }\r\n  });\r\n\r\n  document.getElementById(\u0027statusChips\u0027).addEventListener(\u0027click\u0027, (e)=\u003e{\r\n    const chip = e.target.closest(\u0027.filter-chip\u0027);\r\n    if(!chip) return;\r\n    document.querySelectorAll(\u0027#statusChips .filter-chip\u0027).forEach(c=\u003ec.classList.remove(\u0027selected\u0027));\r\n    chip.classList.add(\u0027selected\u0027);\r\n  });\r\n  document.getElementById(\u0027dateChips\u0027).addEventListener(\u0027click\u0027, (e)=\u003e{\r\n    const chip = e.target.closest(\u0027.filter-chip\u0027);\r\n    if(!chip) return;\r\n    document.querySelectorAll(\u0027#dateChips .filter-chip\u0027).forEach(c=\u003ec.classList.remove(\u0027selected\u0027));\r\n    chip.classList.add(\u0027selected\u0027);\r\n  });\r\n\r\n  document.getElementById(\u0027applyFilters\u0027).addEventListener(\u0027click\u0027, ()=\u003e{\r\n    const statusChip = document.querySelector(\u0027#statusChips .filter-chip.selected\u0027);\r\n    const dateChip = document.querySelector(\u0027#dateChips .filter-chip.selected\u0027);\r\n    state.statusFilter = statusChip.dataset.status;\r\n    state.dateRange = dateChip.dataset.range;\r\n    state.page = 1;\r\n\r\n    let count = 0;\r\n    if(state.statusFilter!==\u0027all\u0027) count++;\r\n    if(state.dateRange!==\u0027all\u0027) count++;\r\n    if(count\u003e0){\r\n      filterCount.style.display=\u0027inline-flex\u0027;\r\n      filterCount.textContent = count;\r\n      filterBtn.classList.add(\u0027active\u0027);\r\n    } else {\r\n      filterCount.style.display=\u0027none\u0027;\r\n      filterBtn.classList.remove(\u0027active\u0027);\r\n    }\r\n\r\n    filtersPanel.classList.remove(\u0027open\u0027);\r\n    render();\r\n    showToast(\u0027âœ… Filters applied\u0027);\r\n  });\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• EXPORT â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */\r\n  document.getElementById(\u0027exportBtn\u0027).addEventListener(\u0027click\u0027, ()=\u003e{\r\n    const filtered = getFilteredUsers();\r\n    const rows = [[\u0027User ID\u0027,\u0027Name\u0027,\u0027Email\u0027,\u0027Mobile\u0027,\u0027Registered On\u0027,\u0027Status\u0027]];\r\n    filtered.forEach(u=\u003e rows.push([u.id,u.name,u.email,u.mobile,u.dateLabel,u.status]));\r\n    const csv = rows.map(r=\u003er.map(c=\u003e`\"${c}\"`).join(\u0027,\u0027)).join(\u0027\\n\u0027);\r\n    const blob = new Blob([csv], {type:\u0027text/csv\u0027});\r\n    const a = document.createElement(\u0027a\u0027);\r\n    a.href = URL.createObjectURL(blob);\r\n    a.download = \u0027scholarhub-users.csv\u0027;\r\n    a.click();\r\n    showToast(\u0027ðŸ“¥ CSV exported successfully\u0027);\r\n  });\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• ADMIN DROPDOWN â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */\r\n  const adminChip = document.getElementById(\u0027adminChip\u0027);\r\n  const adminDropdown = document.getElementById(\u0027adminDropdown\u0027);\r\n  adminChip.addEventListener(\u0027click\u0027, (e)=\u003e{\r\n    e.stopPropagation();\r\n    adminDropdown.classList.toggle(\u0027open\u0027);\r\n  });\r\n  document.addEventListener(\u0027click\u0027, ()=\u003e adminDropdown.classList.remove(\u0027open\u0027));\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• BELL â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */\r\n  document.getElementById(\u0027bellBtn\u0027).addEventListener(\u0027click\u0027, ()=\u003e{\r\n    showToast(\u0027ðŸ”” You have 5 new notifications\u0027);\r\n  });\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• SIDEBAR NAV â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */\r\n  const navItems = document.querySelectorAll(\u0027.nav-item\u0027);\r\n  const pageSections = document.querySelectorAll(\u0027.page-section\u0027);\r\n\r\n  navItems.forEach(item=\u003e{\r\n    item.addEventListener(\u0027click\u0027, ()=\u003e{\r\n      const page = item.dataset.page;\r\n\r\n      if(page===\u0027logout\u0027){\r\n        if(confirm(\u0027Are you sure you want to logout?\u0027)){\r\n          showToast(\u0027ðŸ‘‹ Logged out successfully\u0027);\r\n        }\r\n        return;\r\n      }\r\n\r\n      navItems.forEach(n=\u003en.classList.remove(\u0027active\u0027));\r\n      item.classList.add(\u0027active\u0027);\r\n\r\n      pageSections.forEach(s=\u003es.classList.remove(\u0027active\u0027));\r\n      const target = document.getElementById(\u0027page-\u0027+page);\r\n      if(target) target.classList.add(\u0027active\u0027);\r\n\r\n      // close mobile sidebar\r\n      sidebar.classList.remove(\u0027open\u0027);\r\n      sidebarOverlay.classList.remove(\u0027show\u0027);\r\n    });\r\n  });\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• MOBILE SIDEBAR TOGGLE â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */\r\n  const sidebar = document.getElementById(\u0027sidebar\u0027);\r\n  const sidebarOverlay = document.getElementById(\u0027sidebarOverlay\u0027);\r\n  document.getElementById(\u0027menuToggle\u0027).addEventListener(\u0027click\u0027, ()=\u003e{\r\n    sidebar.classList.add(\u0027open\u0027);\r\n    sidebarOverlay.classList.add(\u0027show\u0027);\r\n  });\r\n  sidebarOverlay.addEventListener(\u0027click\u0027, ()=\u003e{\r\n    sidebar.classList.remove(\u0027open\u0027);\r\n    sidebarOverlay.classList.remove(\u0027show\u0027);\r\n  });\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• TOAST â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */\r\n  let toastTimer;\r\n  function showToast(msg){\r\n    toast.textContent = msg;\r\n    toast.classList.add(\u0027show\u0027);\r\n    clearTimeout(toastTimer);\r\n    toastTimer = setTimeout(()=\u003e toast.classList.remove(\u0027show\u0027), 2400);\r\n  }\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• USERS PAGE MODULE (single user detail view) â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */\r\n  let udState = {\r\n    selectedId: null,\r\n    activeTab: \u0027overview\u0027,\r\n  };\r\n\r\n  const udDetailCard  = document.getElementById(\u0027udDetailCard\u0027);\r\n  const udPageSearch  = document.getElementById(\u0027udPageSearch\u0027);\r\n  const udSearchResults = document.getElementById(\u0027udSearchResults\u0027);\r\n  const crumbName     = document.getElementById(\u0027crumbName\u0027);\r\n\r\n  /* â”€â”€ Per-user mock stats (deterministic from id) â”€â”€ */\r\n  function getUserStats(u){\r\n    const r = seedRandom(u.id.charCodeAt(3)*31 + u.id.charCodeAt(4)*17 + u.id.charCodeAt(5)*5 + 3);\r\n    const totalApps = 1 + Math.floor(r()*5);\r\n    const approved = Math.floor(r()*totalApps);\r\n    const pending = Math.floor(r()*(totalApps-approved+1));\r\n    const rejected = Math.max(0, totalApps-approved-pending);\r\n    const disbursed = approved * (10000 + Math.floor(r()*40000));\r\n    const docs = 4 + Math.floor(r()*8);\r\n    return { totalApps, approved, pending, rejected, disbursed, docs };\r\n  }\r\n\r\n  /* â”€â”€ ICONS â”€â”€ */\r\n  const ICONS = {\r\n    user:\u0027\u003csvg width=\"14\" height=\"14\" viewBox=\"0 0 15 15\" fill=\"none\"\u003e\u003ccircle cx=\"7.5\" cy=\"5\" r=\"2.5\" stroke=\"currentColor\" stroke-width=\"1.4\"/\u003e\u003cpath d=\"M2.5 13c0-2.8 2.2-4.5 5-4.5s5 1.7 5 4.5\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\"/\u003e\u003c/svg\u003e\u0027,\r\n    calendar:\u0027\u003csvg width=\"14\" height=\"14\" viewBox=\"0 0 15 15\" fill=\"none\"\u003e\u003crect x=\"2\" y=\"3\" width=\"11\" height=\"10\" rx=\"1.5\" stroke=\"currentColor\" stroke-width=\"1.4\"/\u003e\u003cpath d=\"M2 6.5h11M5 2v2.5M10 2v2.5\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\"/\u003e\u003c/svg\u003e\u0027,\r\n    gender:\u0027\u003csvg width=\"14\" height=\"14\" viewBox=\"0 0 15 15\" fill=\"none\"\u003e\u003ccircle cx=\"6.5\" cy=\"8.5\" r=\"3.5\" stroke=\"currentColor\" stroke-width=\"1.4\"/\u003e\u003cpath d=\"M9 6l4-4M9.5 2h3.5v3.5\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/\u003e\u003c/svg\u003e\u0027,\r\n    phone:\u0027\u003csvg width=\"14\" height=\"14\" viewBox=\"0 0 15 15\" fill=\"none\"\u003e\u003cpath d=\"M3 2.5h2l1 3-1.5 1.2a8 8 0 004.8 4.8L10.5 10l3 1v2c0 .8-.7 1.5-1.5 1.4C6 14 1 9 .6 3.5 .5 2.7 1.2 2 2 2h1Z\" stroke=\"currentColor\" stroke-width=\"1.3\" stroke-linejoin=\"round\"/\u003e\u003c/svg\u003e\u0027,\r\n    mail:\u0027\u003csvg width=\"14\" height=\"14\" viewBox=\"0 0 15 15\" fill=\"none\"\u003e\u003crect x=\"1.5\" y=\"3\" width=\"12\" height=\"9\" rx=\"1.5\" stroke=\"currentColor\" stroke-width=\"1.4\"/\u003e\u003cpath d=\"M2 4l5.5 4L13 4\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/\u003e\u003c/svg\u003e\u0027,\r\n    shield:\u0027\u003csvg width=\"14\" height=\"14\" viewBox=\"0 0 15 15\" fill=\"none\"\u003e\u003cpath d=\"M7.5 1.5l5 1.8v3.8c0 3.5-2.2 5.7-5 6.4-2.8-.7-5-2.9-5-6.4V3.3l5-1.8Z\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linejoin=\"round\"/\u003e\u003c/svg\u003e\u0027,\r\n    blood:\u0027\u003csvg width=\"14\" height=\"14\" viewBox=\"0 0 15 15\" fill=\"none\"\u003e\u003cpath d=\"M7.5 1.5S3 6 3 9a4.5 4.5 0 009 0c0-3-4.5-7.5-4.5-7.5Z\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linejoin=\"round\"/\u003e\u003c/svg\u003e\u0027,\r\n    globe:\u0027\u003csvg width=\"14\" height=\"14\" viewBox=\"0 0 15 15\" fill=\"none\"\u003e\u003ccircle cx=\"7.5\" cy=\"7.5\" r=\"6\" stroke=\"currentColor\" stroke-width=\"1.4\"/\u003e\u003cpath d=\"M1.5 7.5h12M7.5 1.5c1.8 1.8 2.8 4 2.8 6s-1 4.2-2.8 6c-1.8-1.8-2.8-4-2.8-6s1-4.2 2.8-6Z\" stroke=\"currentColor\" stroke-width=\"1.3\"/\u003e\u003c/svg\u003e\u0027,\r\n    tag:\u0027\u003csvg width=\"14\" height=\"14\" viewBox=\"0 0 15 15\" fill=\"none\"\u003e\u003cpath d=\"M2 2h5l6 6-5 5-6-6V2Z\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linejoin=\"round\"/\u003e\u003ccircle cx=\"5\" cy=\"5\" r=\"1\" fill=\"currentColor\"/\u003e\u003c/svg\u003e\u0027,\r\n    pin:\u0027\u003csvg width=\"14\" height=\"14\" viewBox=\"0 0 15 15\" fill=\"none\"\u003e\u003cpath d=\"M7.5 13s4.5-4.4 4.5-7.8a4.5 4.5 0 00-9 0C3 8.6 7.5 13 7.5 13Z\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linejoin=\"round\"/\u003e\u003ccircle cx=\"7.5\" cy=\"5.3\" r=\"1.5\" stroke=\"currentColor\" stroke-width=\"1.3\"/\u003e\u003c/svg\u003e\u0027,\r\n    building:\u0027\u003csvg width=\"14\" height=\"14\" viewBox=\"0 0 15 15\" fill=\"none\"\u003e\u003crect x=\"3\" y=\"2\" width=\"9\" height=\"11\" rx=\"1\" stroke=\"currentColor\" stroke-width=\"1.4\"/\u003e\u003cpath d=\"M5.5 5h1M8.5 5h1M5.5 7.5h1M8.5 7.5h1M5.5 10h1M8.5 10h1\" stroke=\"currentColor\" stroke-width=\"1.3\" stroke-linecap=\"round\"/\u003e\u003c/svg\u003e\u0027,\r\n    heart:\u0027\u003csvg width=\"14\" height=\"14\" viewBox=\"0 0 15 15\" fill=\"none\"\u003e\u003cpath d=\"M7.5 13S2 9.4 2 5.8A2.8 2.8 0 017.5 4a2.8 2.8 0 015.5 1.8C13 9.4 7.5 13 7.5 13Z\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linejoin=\"round\"/\u003e\u003c/svg\u003e\u0027,\r\n    contact:\u0027\u003csvg width=\"14\" height=\"14\" viewBox=\"0 0 15 15\" fill=\"none\"\u003e\u003ccircle cx=\"7.5\" cy=\"5\" r=\"2.5\" stroke=\"currentColor\" stroke-width=\"1.4\"/\u003e\u003cpath d=\"M2.5 13c0-2.8 2.2-4.5 5-4.5s5 1.7 5 4.5\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\"/\u003e\u003cpath d=\"M11.5 2.5l1 1 2-2\" stroke=\"currentColor\" stroke-width=\"1.3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/\u003e\u003c/svg\u003e\u0027,\r\n    overview:\u0027\u003csvg width=\"15\" height=\"15\" viewBox=\"0 0 16 16\" fill=\"none\"\u003e\u003ccircle cx=\"8\" cy=\"8\" r=\"6\" stroke=\"currentColor\" stroke-width=\"1.5\"/\u003e\u003ccircle cx=\"8\" cy=\"8\" r=\"2\" fill=\"currentColor\"/\u003e\u003c/svg\u003e\u0027,\r\n    personal:\u0027\u003csvg width=\"15\" height=\"15\" viewBox=\"0 0 16 16\" fill=\"none\"\u003e\u003ccircle cx=\"8\" cy=\"5.5\" r=\"2.8\" stroke=\"currentColor\" stroke-width=\"1.5\"/\u003e\u003cpath d=\"M2.8 14c0-3 2.3-5 5.2-5s5.2 2 5.2 5\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\"/\u003e\u003c/svg\u003e\u0027,\r\n    academic:\u0027\u003csvg width=\"15\" height=\"15\" viewBox=\"0 0 16 16\" fill=\"none\"\u003e\u003cpath d=\"M8 2.5L14.5 6 8 9.5 1.5 6 8 2.5Z\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linejoin=\"round\"/\u003e\u003cpath d=\"M4.5 7.5v3c0 1.7 1.6 3 3.5 3s3.5-1.3 3.5-3v-3\" stroke=\"currentColor\" stroke-width=\"1.4\"/\u003e\u003c/svg\u003e\u0027,\r\n    financial:\u0027\u003csvg width=\"15\" height=\"15\" viewBox=\"0 0 16 16\" fill=\"none\"\u003e\u003ccircle cx=\"8\" cy=\"8\" r=\"6.3\" stroke=\"currentColor\" stroke-width=\"1.4\"/\u003e\u003cpath d=\"M8 4.5v7M10 6c0-1-.9-1.7-2-1.7S6 5 6 6s.9 1.4 2 1.7 2 .7 2 1.7-.9 1.6-2 1.6-2-.6-2-1.6\" stroke=\"currentColor\" stroke-width=\"1.3\" stroke-linecap=\"round\"/\u003e\u003c/svg\u003e\u0027,\r\n    applications:\u0027\u003csvg width=\"15\" height=\"15\" viewBox=\"0 0 16 16\" fill=\"none\"\u003e\u003crect x=\"3\" y=\"2\" width=\"10\" height=\"12\" rx=\"1.5\" stroke=\"currentColor\" stroke-width=\"1.4\"/\u003e\u003cpath d=\"M5.5 5.5h5M5.5 8h5M5.5 10.5h3\" stroke=\"currentColor\" stroke-width=\"1.3\" stroke-linecap=\"round\"/\u003e\u003c/svg\u003e\u0027,\r\n    documents:\u0027\u003csvg width=\"15\" height=\"15\" viewBox=\"0 0 16 16\" fill=\"none\"\u003e\u003cpath d=\"M3 4a1.5 1.5 0 011.5-1.5H9l3.5 3.5V12A1.5 1.5 0 0111 13.5H4.5A1.5 1.5 0 013 12V4Z\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linejoin=\"round\"/\u003e\u003cpath d=\"M9 2.5V6h3.5\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linejoin=\"round\"/\u003e\u003c/svg\u003e\u0027,\r\n    activity:\u0027\u003csvg width=\"15\" height=\"15\" viewBox=\"0 0 16 16\" fill=\"none\"\u003e\u003ccircle cx=\"8\" cy=\"8\" r=\"6.3\" stroke=\"currentColor\" stroke-width=\"1.4\"/\u003e\u003cpath d=\"M8 4.5V8l2.7 1.6\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/\u003e\u003c/svg\u003e\u0027,\r\n    check:\u0027\u003csvg width=\"13\" height=\"13\" viewBox=\"0 0 14 14\" fill=\"none\"\u003e\u003ccircle cx=\"7\" cy=\"7\" r=\"6\" fill=\"#16A34A\"/\u003e\u003cpath d=\"M4.2 7.2l1.8 1.8L9.8 5\" stroke=\"white\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/\u003e\u003c/svg\u003e\u0027,\r\n  };\r\n\r\n  const TABS = [\r\n    {key:\u0027overview\u0027, label:\u0027Overview\u0027, icon:ICONS.overview},\r\n    {key:\u0027personal\u0027, label:\u0027Personal Details\u0027, icon:ICONS.personal},\r\n    {key:\u0027academic\u0027, label:\u0027Academic Details\u0027, icon:ICONS.academic},\r\n    {key:\u0027financial\u0027, label:\u0027Financial Details\u0027, icon:ICONS.financial},\r\n    {key:\u0027applications\u0027, label:\u0027Applications\u0027, icon:ICONS.applications, countKey:\u0027totalApps\u0027},\r\n    {key:\u0027documents\u0027, label:\u0027Documents\u0027, icon:ICONS.documents, countKey:\u0027docs\u0027},\r\n    {key:\u0027activity\u0027, label:\u0027Activity Log\u0027, icon:ICONS.activity},\r\n  ];\r\n\r\n  function openUserDetails(userId){\r\n    udState.selectedId = userId;\r\n    udState.activeTab = \u0027overview\u0027;\r\n\r\n    navItems.forEach(n=\u003en.classList.remove(\u0027active\u0027));\r\n    document.querySelector(\u0027.nav-item[data-page=\"users\"]\u0027).classList.add(\u0027active\u0027);\r\n    pageSections.forEach(s=\u003es.classList.remove(\u0027active\u0027));\r\n    document.getElementById(\u0027page-users\u0027).classList.add(\u0027active\u0027);\r\n\r\n    renderUdDetail();\r\n    sidebar.classList.remove(\u0027open\u0027);\r\n    sidebarOverlay.classList.remove(\u0027show\u0027);\r\n  }\r\n\r\n  function renderUdDetail(){\r\n    const u = ALL_USERS.find(x=\u003ex.id===udState.selectedId);\r\n\r\n    if(!u){\r\n      crumbName.textContent = \u0027User\u0027;\r\n      udDetailCard.innerHTML = `\u003cdiv class=\"ud-empty-detail\"\u003e\r\n        \u003csvg width=\"56\" height=\"56\" viewBox=\"0 0 56 56\" fill=\"none\"\u003e\u003ccircle cx=\"28\" cy=\"28\" r=\"26\" stroke=\"#9498B3\" stroke-width=\"2\"/\u003e\u003ccircle cx=\"22\" cy=\"20\" r=\"7\" stroke=\"#9498B3\" stroke-width=\"2\"/\u003e\u003cpath d=\"M10 42c0-7.5 5.5-13 12-13s12 5.5 12 13\" stroke=\"#9498B3\" stroke-width=\"2\"/\u003e\u003c/svg\u003e\r\n        \u003ch3\u003eNo user selected\u003c/h3\u003e\r\n        \u003cp\u003eSearch above or open a user from the Dashboard table.\u003c/p\u003e\r\n      \u003c/div\u003e`;\r\n      return;\r\n    }\r\n\r\n    const p = getExtendedProfile(u);\r\n    const stats = getUserStats(u);\r\n    crumbName.textContent = u.name;\r\n\r\n    udDetailCard.innerHTML = `\r\n      \u003cdiv class=\"ud-profile-card\"\u003e\r\n        \u003cdiv class=\"ud-profile-left\"\u003e\r\n          \u003cdiv class=\"ud-profile-avatar-wrap\"\u003e\r\n            \u003cdiv class=\"ud-profile-avatar\" style=\"background:${u.color}\"\u003e${u.initials}\u003c/div\u003e\r\n            \u003cdiv class=\"ud-camera-badge\" id=\"udCameraBtn\"\u003e\r\n              \u003csvg width=\"13\" height=\"13\" viewBox=\"0 0 13 13\" fill=\"none\"\u003e\u003cpath d=\"M2 4.5h1.5L4.5 3h4l1 1.5H11a1 1 0 011 1V10a1 1 0 01-1 1H2a1 1 0 01-1-1V5.5a1 1 0 011-1Z\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linejoin=\"round\"/\u003e\u003ccircle cx=\"6.5\" cy=\"7\" r=\"1.8\" stroke=\"currentColor\" stroke-width=\"1.2\"/\u003e\u003c/svg\u003e\r\n            \u003c/div\u003e\r\n          \u003c/div\u003e\r\n          \u003cdiv class=\"ud-profile-info\"\u003e\r\n            \u003cdiv class=\"ud-profile-name-line\"\u003e\r\n              \u003cspan class=\"ud-profile-name\"\u003e${u.name}\u003c/span\u003e\r\n              \u003cspan class=\"status-pill ${u.status===\u0027Active\u0027?\u0027active\u0027:\u0027inactive\u0027}\"\u003e${u.status}\u003c/span\u003e\r\n            \u003c/div\u003e\r\n            \u003cdiv class=\"ud-profile-id\"\u003eUser ID: ${u.id}\u003c/div\u003e\r\n            \u003cdiv class=\"ud-profile-reg\"\u003eRegistered On: ${p.regTime}\u003c/div\u003e\r\n            \u003cdiv class=\"ud-contact-row\"\u003e\r\n              \u003cspan class=\"ud-contact-item\"\u003e${ICONS.mail} ${u.email}\u003c/span\u003e\r\n              \u003cspan class=\"ud-contact-item\"\u003e${ICONS.phone} ${u.mobile}\u003c/span\u003e\r\n              \u003cspan class=\"ud-contact-item\"\u003e${ICONS.pin} ${p.address}\u003c/span\u003e\r\n            \u003c/div\u003e\r\n          \u003c/div\u003e\r\n        \u003c/div\u003e\r\n        \u003cdiv class=\"ud-actions\"\u003e\r\n          \u003cbutton class=\"ud-btn ud-btn-primary\" id=\"udEditBtn\"\u003e\r\n            \u003csvg width=\"14\" height=\"14\" viewBox=\"0 0 14 14\" fill=\"none\"\u003e\u003cpath d=\"M9.5 2L12 4.5 5 11.5 2 12l.5-3L9.5 2Z\" stroke=\"white\" stroke-width=\"1.4\" stroke-linejoin=\"round\"/\u003e\u003c/svg\u003e\r\n            Edit User\r\n          \u003c/button\u003e\r\n          \u003cbutton class=\"ud-btn ud-btn-outline\" id=\"udPdfBtn\"\u003e\r\n            \u003csvg width=\"14\" height=\"14\" viewBox=\"0 0 14 14\" fill=\"none\"\u003e\u003cpath d=\"M7 1.5v7M4.5 6l2.5 2.5L9.5 6\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/\u003e\u003cpath d=\"M2 10v1.5A1.5 1.5 0 003.5 13h7a1.5 1.5 0 001.5-1.5V10\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\"/\u003e\u003c/svg\u003e\r\n            Download PDF\r\n          \u003c/button\u003e\r\n          \u003cdiv style=\"position:relative;\"\u003e\r\n            \u003cbutton class=\"ud-btn ud-btn-outline ud-btn-icon\" id=\"udMoreBtn\"\u003e\r\n              \u003csvg width=\"15\" height=\"15\" viewBox=\"0 0 15 15\" fill=\"none\"\u003e\u003ccircle cx=\"7.5\" cy=\"3\" r=\"1.2\" fill=\"currentColor\"/\u003e\u003ccircle cx=\"7.5\" cy=\"7.5\" r=\"1.2\" fill=\"currentColor\"/\u003e\u003ccircle cx=\"7.5\" cy=\"12\" r=\"1.2\" fill=\"currentColor\"/\u003e\u003c/svg\u003e\r\n            \u003c/button\u003e\r\n            \u003cdiv class=\"ud-detail-menu\" id=\"udMoreMenu\"\u003e\r\n              \u003cbutton id=\"udToggleStatus\"\u003eðŸ” ${u.status===\u0027Active\u0027?\u0027Deactivate User\u0027:\u0027Activate User\u0027}\u003c/button\u003e\r\n              \u003cbutton id=\"udSendEmail\"\u003eâœ‰ï¸ Send Email\u003c/button\u003e\r\n              \u003cbutton id=\"udResetPwd\"\u003eðŸ”‘ Reset Password\u003c/button\u003e\r\n              \u003cbutton class=\"danger\" id=\"udDeleteUser\"\u003eðŸ—‘ï¸ Delete User\u003c/button\u003e\r\n            \u003c/div\u003e\r\n          \u003c/div\u003e\r\n        \u003c/div\u003e\r\n      \u003c/div\u003e\r\n\r\n      \u003cdiv class=\"ud-tabs\" id=\"udTabs\"\u003e\r\n        ${TABS.map(t =\u003e `\u003cbutton class=\"ud-tab ${t.key===udState.activeTab?\u0027active\u0027:\u0027\u0027}\" data-tab=\"${t.key}\"\u003e${t.icon} ${t.label}${t.countKey?` \u003cspan class=\"ud-tab-count\"\u003e(${stats[t.countKey]})\u003c/span\u003e`:\u0027\u0027}\u003c/button\u003e`).join(\u0027\u0027)}\r\n      \u003c/div\u003e\r\n\r\n      \u003cdiv class=\"ud-body\" id=\"udTabPanels\"\u003e\r\n        ${renderTabPanel(udState.activeTab, u, p, stats)}\r\n      \u003c/div\u003e\r\n    `;\r\n\r\n    wireDetailEvents(u);\r\n  }\r\n\r\n  function statPill(label, value, icon, bg, color){\r\n    return `\u003cdiv class=\"ud-summary-card\"\u003e\r\n      \u003cdiv class=\"ud-summary-icon\" style=\"background:${bg};color:${color}\"\u003e${icon}\u003c/div\u003e\r\n      \u003cdiv\u003e\u003cdiv class=\"ud-summary-label\"\u003e${label}\u003c/div\u003e\u003cdiv class=\"ud-summary-value\"\u003e${value}\u003c/div\u003e\u003c/div\u003e\r\n    \u003c/div\u003e`;\r\n  }\r\n\r\n  function quickSummarySidebar(stats){\r\n    return `\u003cdiv class=\"ud-summary-col\"\u003e\r\n      \u003cdiv class=\"ud-summary-title\"\u003e\r\n        \u003csvg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" fill=\"none\"\u003e\u003ccircle cx=\"8\" cy=\"8\" r=\"6.3\" stroke=\"currentColor\" stroke-width=\"1.4\"/\u003e\u003cpath d=\"M8 2v6l4 2\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/\u003e\u003c/svg\u003e\r\n        Quick Summary\r\n      \u003c/div\u003e\r\n      ${statPill(\u0027Total Applications\u0027, stats.totalApps, ICONS.applications, \u0027#EEEEFD\u0027, \u0027#4927EF\u0027)}\r\n      ${statPill(\u0027Approved Scholarships\u0027, stats.approved, ICONS.check.replace(\u0027width=\"13\" height=\"13\"\u0027,\u0027width=\"16\" height=\"16\"\u0027), \u0027#E9FBF1\u0027, \u0027#16A34A\u0027)}\r\n      ${statPill(\u0027Total Disbursed\u0027, \u0027â‚¹\u0027+stats.disbursed.toLocaleString(\u0027en-IN\u0027), ICONS.financial, \u0027#FDEAF1\u0027, \u0027#EC4899\u0027)}\r\n      ${statPill(\u0027Pending Applications\u0027, stats.pending, \u0027\u003csvg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" fill=\"none\"\u003e\u003ccircle cx=\"8\" cy=\"8\" r=\"6.3\" stroke=\"currentColor\" stroke-width=\"1.4\"/\u003e\u003cpath d=\"M8 4.5V8l2.5 1.5\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\"/\u003e\u003c/svg\u003e\u0027, \u0027#FEF3E2\u0027, \u0027#F59E0B\u0027)}\r\n      ${statPill(\u0027Rejections\u0027, stats.rejected, \u0027\u003csvg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" fill=\"none\"\u003e\u003ccircle cx=\"8\" cy=\"8\" r=\"6.3\" stroke=\"currentColor\" stroke-width=\"1.4\"/\u003e\u003cpath d=\"M5.8 5.8l4.4 4.4M10.2 5.8l-4.4 4.4\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\"/\u003e\u003c/svg\u003e\u0027, \u0027#FEF2F2\u0027, \u0027#DC2626\u0027)}\r\n    \u003c/div\u003e`;\r\n  }\r\n\r\n  function renderTabPanel(key, u, p, stats){\r\n    if(key===\u0027overview\u0027){\r\n      return `\r\n        \u003cdiv class=\"ud-main-col\"\u003e\r\n          \u003cdiv class=\"ud-overview-grid\"\u003e\r\n            \u003cdiv class=\"ud-overview-mini\"\u003e\u003cdiv class=\"ud-overview-mini-icon\" style=\"background:#EEEEFD;color:#4927EF;\"\u003e${ICONS.applications}\u003c/div\u003e\u003cdiv\u003e\u003cdiv class=\"ud-overview-mini-label\"\u003eApplications\u003c/div\u003e\u003cdiv class=\"ud-overview-mini-value\"\u003e${stats.totalApps}\u003c/div\u003e\u003c/div\u003e\u003c/div\u003e\r\n            \u003cdiv class=\"ud-overview-mini\"\u003e\u003cdiv class=\"ud-overview-mini-icon\" style=\"background:#E9FBF1;color:#16A34A;\"\u003e${ICONS.check}\u003c/div\u003e\u003cdiv\u003e\u003cdiv class=\"ud-overview-mini-label\"\u003eApproved\u003c/div\u003e\u003cdiv class=\"ud-overview-mini-value\"\u003e${stats.approved}\u003c/div\u003e\u003c/div\u003e\u003c/div\u003e\r\n            \u003cdiv class=\"ud-overview-mini\"\u003e\u003cdiv class=\"ud-overview-mini-icon\" style=\"background:#FEF3E2;color:#F59E0B;\"\u003e${ICONS.documents}\u003c/div\u003e\u003cdiv\u003e\u003cdiv class=\"ud-overview-mini-label\"\u003eDocuments\u003c/div\u003e\u003cdiv class=\"ud-overview-mini-value\"\u003e${stats.docs}\u003c/div\u003e\u003c/div\u003e\u003c/div\u003e\r\n          \u003c/div\u003e\r\n\r\n          \u003cdiv class=\"ud-cards-row\"\u003e\r\n            \u003cdiv class=\"ud-card\"\u003e\r\n              \u003cdiv class=\"ud-card-title\"\u003e${ICONS.personal} Personal Information\u003c/div\u003e\r\n              \u003cdiv class=\"ud-info-grid\"\u003e\r\n                \u003cdiv class=\"ud-info-item\"\u003e\u003cdiv class=\"ud-info-icon\"\u003e${ICONS.user}\u003c/div\u003e\u003cdiv\u003e\u003cdiv class=\"ud-info-label\"\u003eFull Name\u003c/div\u003e\u003cdiv class=\"ud-info-value\"\u003e${u.name}\u003c/div\u003e\u003c/div\u003e\u003c/div\u003e\r\n                \u003cdiv class=\"ud-info-item\"\u003e\u003cdiv class=\"ud-info-icon\"\u003e${ICONS.gender}\u003c/div\u003e\u003cdiv\u003e\u003cdiv class=\"ud-info-label\"\u003eGender\u003c/div\u003e\u003cdiv class=\"ud-info-value\"\u003e${p.gender}\u003c/div\u003e\u003c/div\u003e\u003c/div\u003e\r\n                \u003cdiv class=\"ud-info-item\"\u003e\u003cdiv class=\"ud-info-icon\"\u003e${ICONS.calendar}\u003c/div\u003e\u003cdiv\u003e\u003cdiv class=\"ud-info-label\"\u003eDate of Birth\u003c/div\u003e\u003cdiv class=\"ud-info-value\"\u003e${p.dob}\u003c/div\u003e\u003c/div\u003e\u003c/div\u003e\r\n                \u003cdiv class=\"ud-info-item\"\u003e\u003cdiv class=\"ud-info-icon\"\u003e${ICONS.tag}\u003c/div\u003e\u003cdiv\u003e\u003cdiv class=\"ud-info-label\"\u003eCategory\u003c/div\u003e\u003cdiv class=\"ud-info-value\"\u003e${p.category}\u003c/div\u003e\u003c/div\u003e\u003c/div\u003e\r\n              \u003c/div\u003e\r\n            \u003c/div\u003e\r\n            \u003cdiv class=\"ud-card\"\u003e\r\n              \u003cdiv class=\"ud-card-title\"\u003e${ICONS.pin} Address Information\u003c/div\u003e\r\n              \u003cdiv class=\"ud-single-col-grid\"\u003e\r\n                \u003cdiv class=\"ud-kv-row\"\u003e\u003cspan class=\"ud-kv-label\"\u003eState\u003c/span\u003e\u003cspan class=\"ud-kv-value\"\u003e${p.state}\u003c/span\u003e\u003c/div\u003e\r\n                \u003cdiv class=\"ud-kv-row\"\u003e\u003cspan class=\"ud-kv-label\"\u003eCity\u003c/span\u003e\u003cspan class=\"ud-kv-value\"\u003e${p.city}\u003c/span\u003e\u003c/div\u003e\r\n                \u003cdiv class=\"ud-kv-row\"\u003e\u003cspan class=\"ud-kv-label\"\u003eAddress\u003c/span\u003e\u003cspan class=\"ud-kv-value\"\u003e${p.address}\u003c/span\u003e\u003c/div\u003e\r\n              \u003c/div\u003e\r\n            \u003c/div\u003e\r\n          \u003c/div\u003e\r\n\r\n          \u003cdiv class=\"ud-card\"\u003e\r\n            \u003cdiv class=\"ud-card-title\"\u003e${ICONS.shield} Profile \u0026amp; Verification\u003c/div\u003e\r\n            \u003cdiv class=\"ud-single-col-grid\"\u003e\r\n              \u003cdiv class=\"ud-verify-row\"\u003e\u003cspan class=\"ud-verify-label\"\u003eKYC Verified\u003c/span\u003e\u003cspan class=\"ud-verify-status\"\u003e\u003cspan class=\"ud-verify-pill\"\u003eVerified\u003c/span\u003e${ICONS.check}\u003c/span\u003e\u003c/div\u003e\r\n              \u003cdiv class=\"ud-verify-row\"\u003e\u003cspan class=\"ud-verify-label\"\u003eEmail Verified\u003c/span\u003e\u003cspan class=\"ud-verify-status\"\u003e\u003cspan class=\"ud-verify-pill\"\u003eVerified\u003c/span\u003e${ICONS.check}\u003c/span\u003e\u003c/div\u003e\r\n              \u003cdiv class=\"ud-verify-row\"\u003e\u003cspan class=\"ud-verify-label\"\u003eMobile Verified\u003c/span\u003e\u003cspan class=\"ud-verify-status\"\u003e\u003cspan class=\"ud-verify-pill\"\u003eVerified\u003c/span\u003e${ICONS.check}\u003c/span\u003e\u003c/div\u003e\r\n            \u003c/div\u003e\r\n          \u003c/div\u003e\r\n        \u003c/div\u003e\r\n        ${quickSummarySidebar(stats)}\r\n      `;\r\n    }\r\n\r\n    if(key===\u0027personal\u0027){\r\n      return `\r\n        \u003cdiv class=\"ud-main-col\"\u003e\r\n          \u003cdiv class=\"ud-cards-row\"\u003e\r\n            \u003cdiv class=\"ud-card\"\u003e\r\n              \u003cdiv class=\"ud-card-title\"\u003e${ICONS.personal} Personal Information\u003c/div\u003e\r\n              \u003cdiv class=\"ud-info-grid\"\u003e\r\n                \u003cdiv class=\"ud-info-item\"\u003e\u003cdiv class=\"ud-info-icon\"\u003e${ICONS.user}\u003c/div\u003e\u003cdiv\u003e\u003cdiv class=\"ud-info-label\"\u003eFull Name\u003c/div\u003e\u003cdiv class=\"ud-info-value\"\u003e${u.name}\u003c/div\u003e\u003c/div\u003e\u003c/div\u003e\r\n                \u003cdiv class=\"ud-info-item\"\u003e\u003cdiv class=\"ud-info-icon\"\u003e${ICONS.user}\u003c/div\u003e\u003cdiv\u003e\u003cdiv class=\"ud-info-label\"\u003eFather\u0027s Name\u003c/div\u003e\u003cdiv class=\"ud-info-value\"\u003e${p.fatherName}\u003c/div\u003e\u003c/div\u003e\u003c/div\u003e\r\n                \u003cdiv class=\"ud-info-item\"\u003e\u003cdiv class=\"ud-info-icon\"\u003e${ICONS.calendar}\u003c/div\u003e\u003cdiv\u003e\u003cdiv class=\"ud-info-label\"\u003eDate of Birth\u003c/div\u003e\u003cdiv class=\"ud-info-value\"\u003e${p.dob}\u003c/div\u003e\u003c/div\u003e\u003c/div\u003e\r\n                \u003cdiv class=\"ud-info-item\"\u003e\u003cdiv class=\"ud-info-icon\"\u003e${ICONS.user}\u003c/div\u003e\u003cdiv\u003e\u003cdiv class=\"ud-info-label\"\u003eMother\u0027s Name\u003c/div\u003e\u003cdiv class=\"ud-info-value\"\u003e${p.motherName}\u003c/div\u003e\u003c/div\u003e\u003c/div\u003e\r\n                \u003cdiv class=\"ud-info-item\"\u003e\u003cdiv class=\"ud-info-icon\"\u003e${ICONS.gender}\u003c/div\u003e\u003cdiv\u003e\u003cdiv class=\"ud-info-label\"\u003eGender\u003c/div\u003e\u003cdiv class=\"ud-info-value\"\u003e${p.gender}\u003c/div\u003e\u003c/div\u003e\u003c/div\u003e\r\n                \u003cdiv class=\"ud-info-item\"\u003e\u003cdiv class=\"ud-info-icon\"\u003e${ICONS.globe}\u003c/div\u003e\u003cdiv\u003e\u003cdiv class=\"ud-info-label\"\u003eNationality\u003c/div\u003e\u003cdiv class=\"ud-info-value\"\u003e${p.nationality}\u003c/div\u003e\u003c/div\u003e\u003c/div\u003e\r\n                \u003cdiv class=\"ud-info-item\"\u003e\u003cdiv class=\"ud-info-icon\"\u003e${ICONS.phone}\u003c/div\u003e\u003cdiv\u003e\u003cdiv class=\"ud-info-label\"\u003eMobile Number\u003c/div\u003e\u003cdiv class=\"ud-info-value\"\u003e${u.mobile}\u003c/div\u003e\u003c/div\u003e\u003c/div\u003e\r\n                \u003cdiv class=\"ud-info-item\"\u003e\u003cdiv class=\"ud-info-icon\"\u003e${ICONS.tag}\u003c/div\u003e\u003cdiv\u003e\u003cdiv class=\"ud-info-label\"\u003eCategory\u003c/div\u003e\u003cdiv class=\"ud-info-value\"\u003e${p.category}\u003c/div\u003e\u003c/div\u003e\u003c/div\u003e\r\n                \u003cdiv class=\"ud-info-item\"\u003e\u003cdiv class=\"ud-info-icon\"\u003e${ICONS.mail}\u003c/div\u003e\u003cdiv\u003e\u003cdiv class=\"ud-info-label\"\u003eEmail Address\u003c/div\u003e\u003cdiv class=\"ud-info-value\"\u003e${u.email}\u003c/div\u003e\u003c/div\u003e\u003c/div\u003e\r\n              \u003c/div\u003e\r\n            \u003c/div\u003e\r\n            \u003cdiv class=\"ud-card\"\u003e\r\n              \u003cdiv class=\"ud-card-title\"\u003e${ICONS.pin} Address Information\u003c/div\u003e\r\n              \u003cdiv class=\"ud-single-col-grid\"\u003e\r\n                \u003cdiv class=\"ud-kv-row\"\u003e\u003cspan class=\"ud-kv-label\"\u003eAddress\u003c/span\u003e\u003cspan class=\"ud-kv-value\"\u003e${p.address}\u003c/span\u003e\u003c/div\u003e\r\n                \u003cdiv class=\"ud-kv-row\"\u003e\u003cspan class=\"ud-kv-label\"\u003eState\u003c/span\u003e\u003cspan class=\"ud-kv-value\"\u003e${p.state}\u003c/span\u003e\u003c/div\u003e\r\n                \u003cdiv class=\"ud-kv-row\"\u003e\u003cspan class=\"ud-kv-label\"\u003eCity\u003c/span\u003e\u003cspan class=\"ud-kv-value\"\u003e${p.city}\u003c/span\u003e\u003c/div\u003e\r\n                \u003cdiv class=\"ud-kv-row\"\u003e\u003cspan class=\"ud-kv-label\"\u003ePincode\u003c/span\u003e\u003cspan class=\"ud-kv-value\"\u003e${p.address.match(/\\\\d{6}/)?.[0]||\u0027\u0027}\u003c/span\u003e\u003c/div\u003e\r\n              \u003c/div\u003e\r\n\r\n              \u003cdiv class=\"ud-divider\"\u003e\u003c/div\u003e\r\n              \u003cdiv class=\"ud-card-title\"\u003e${ICONS.user} Additional Information\u003c/div\u003e\r\n              \u003cdiv class=\"ud-single-col-grid\"\u003e\r\n                \u003cdiv class=\"ud-kv-row\"\u003e\u003cspan class=\"ud-kv-label\"\u003eAadhaar Number\u003c/span\u003e\u003cspan class=\"ud-kv-value\"\u003e${p.aadhaar}\u003c/span\u003e\u003c/div\u003e\r\n                \u003cdiv class=\"ud-kv-row\"\u003e\u003cspan class=\"ud-kv-label\"\u003eBlood Group\u003c/span\u003e\u003cspan class=\"ud-kv-value\"\u003e${p.bloodGroup}\u003c/span\u003e\u003c/div\u003e\r\n                \u003cdiv class=\"ud-kv-row\"\u003e\u003cspan class=\"ud-kv-label\"\u003eAlternate Mobile\u003c/span\u003e\u003cspan class=\"ud-kv-value\"\u003e${p.altMobile}\u003c/span\u003e\u003c/div\u003e\r\n                \u003cdiv class=\"ud-kv-row\"\u003e\u003cspan class=\"ud-kv-label\"\u003eMarital Status\u003c/span\u003e\u003cspan class=\"ud-kv-value\"\u003e${p.maritalStatus}\u003c/span\u003e\u003c/div\u003e\r\n                \u003cdiv class=\"ud-kv-row\"\u003e\u003cspan class=\"ud-kv-label\"\u003eEmergency Contact\u003c/span\u003e\u003cspan class=\"ud-kv-value\"\u003e${p.emergencyContact}\u003c/span\u003e\u003c/div\u003e\r\n              \u003c/div\u003e\r\n            \u003c/div\u003e\r\n          \u003c/div\u003e\r\n\r\n          \u003cdiv class=\"ud-card\"\u003e\r\n            \u003cdiv class=\"ud-card-title\"\u003e${ICONS.shield} Profile \u0026amp; Verification\u003c/div\u003e\r\n            \u003cdiv class=\"ud-info-grid\"\u003e\r\n              \u003cdiv class=\"ud-verify-row\"\u003e\u003cspan class=\"ud-verify-label\"\u003eKYC Verified\u003c/span\u003e\u003cspan class=\"ud-verify-status\"\u003e\u003cspan class=\"ud-verify-pill\"\u003eVerified\u003c/span\u003e${ICONS.check}\u003c/span\u003e\u003c/div\u003e\r\n              \u003cdiv class=\"ud-verify-row\"\u003e\u003cspan class=\"ud-verify-label\"\u003eEmail Verified\u003c/span\u003e\u003cspan class=\"ud-verify-status\"\u003e\u003cspan class=\"ud-verify-pill\"\u003eVerified\u003c/span\u003e${ICONS.check}\u003c/span\u003e\u003c/div\u003e\r\n              \u003cdiv class=\"ud-verify-row\"\u003e\u003cspan class=\"ud-verify-label\"\u003eMobile Verified\u003c/span\u003e\u003cspan class=\"ud-verify-status\"\u003e\u003cspan class=\"ud-verify-pill\"\u003eVerified\u003c/span\u003e${ICONS.check}\u003c/span\u003e\u003c/div\u003e\r\n              \u003cdiv class=\"ud-verify-row\"\u003e\u003cspan class=\"ud-verify-label\"\u003eVerified On\u003c/span\u003e\u003cspan class=\"ud-kv-value\"\u003e${u.dateLabel}\u003c/span\u003e\u003c/div\u003e\r\n            \u003c/div\u003e\r\n          \u003c/div\u003e\r\n        \u003c/div\u003e\r\n        ${quickSummarySidebar(stats)}\r\n      `;\r\n    }\r\n\r\n    // Coming soon tabs\r\n    const meta = {\r\n      academic:    {icon:\u0027ðŸŽ“\u0027, title:\u0027Academic Details\u0027, desc:\"This user\u0027s course, school, and academic records will appear here.\"},\r\n      financial:   {icon:\u0027ðŸ’°\u0027, title:\u0027Financial Details\u0027, desc:\u0027Income details and financial documents will appear here.\u0027},\r\n      applications:{icon:\u0027ðŸ“‹\u0027, title:\u0027Applications\u0027, desc:\u0027All scholarship applications submitted by this user will appear here.\u0027},\r\n      documents:   {icon:\u0027ðŸ“\u0027, title:\u0027Documents\u0027, desc:\u0027Uploaded documents and verification status will appear here.\u0027},\r\n      activity:    {icon:\u0027ðŸ•’\u0027, title:\u0027Activity Log\u0027, desc:\"This user\u0027s login history and account activity will appear here.\"},\r\n    }[key];\r\n\r\n    return `\r\n      \u003cdiv class=\"ud-main-col\"\u003e\r\n        \u003cdiv class=\"ud-card\" style=\"grid-column:1/-1;\"\u003e\r\n          \u003cdiv class=\"ud-coming-soon\"\u003e\r\n            \u003cdiv class=\"ud-coming-soon-emoji\"\u003e${meta.icon}\u003c/div\u003e\r\n            \u003ch3\u003e${meta.title}\u003c/h3\u003e\r\n            \u003cp\u003e${meta.desc}\u003c/p\u003e\r\n            \u003cspan class=\"ud-coming-soon-badge\"\u003eðŸš§ Coming Soon\u003c/span\u003e\r\n          \u003c/div\u003e\r\n        \u003c/div\u003e\r\n      \u003c/div\u003e\r\n      ${quickSummarySidebar(stats)}\r\n    `;\r\n  }\r\n\r\n  function wireDetailEvents(u){\r\n    document.getElementById(\u0027udEditBtn\u0027).addEventListener(\u0027click\u0027, ()=\u003e showToast(`âœï¸ Editing ${u.name}`));\r\n    document.getElementById(\u0027udPdfBtn\u0027).addEventListener(\u0027click\u0027, ()=\u003e{\r\n      const p = getExtendedProfile(u);\r\n      const lines = [\r\n        `ScholarHub â€” User Profile`,\r\n        `=========================`,\r\n        `Name: ${u.name}`,`User ID: ${u.id}`,`Status: ${u.status}`,\r\n        `Email: ${u.email}`,`Mobile: ${u.mobile}`,\r\n        `DOB: ${p.dob}`,`Gender: ${p.gender}`,`Category: ${p.category}`,\r\n        `Address: ${p.address}`,`Registered: ${p.regTime}`,\r\n      ];\r\n      const blob = new Blob([lines.join(\u0027\\n\u0027)], {type:\u0027text/plain\u0027});\r\n      const a = document.createElement(\u0027a\u0027);\r\n      a.href = URL.createObjectURL(blob);\r\n      a.download = `${u.id}-${u.name.replace(/\\s+/g,\u0027_\u0027)}.txt`;\r\n      a.click();\r\n      showToast(\u0027ðŸ“¥ Profile downloaded\u0027);\r\n    });\r\n    document.getElementById(\u0027udCameraBtn\u0027).addEventListener(\u0027click\u0027, ()=\u003e showToast(\u0027ðŸ“· Photo upload coming soon\u0027));\r\n\r\n    const moreBtn = document.getElementById(\u0027udMoreBtn\u0027);\r\n    const moreMenu = document.getElementById(\u0027udMoreMenu\u0027);\r\n    moreBtn.addEventListener(\u0027click\u0027, (e)=\u003e{ e.stopPropagation(); moreMenu.classList.toggle(\u0027open\u0027); });\r\n    document.addEventListener(\u0027click\u0027, ()=\u003e moreMenu.classList.remove(\u0027open\u0027));\r\n\r\n    document.getElementById(\u0027udToggleStatus\u0027).addEventListener(\u0027click\u0027, ()=\u003e{\r\n      u.status = u.status===\u0027Active\u0027 ? \u0027Inactive\u0027 : \u0027Active\u0027;\r\n      showToast(`ðŸ” ${u.name} is now ${u.status}`);\r\n      renderUdDetail();\r\n      render();\r\n    });\r\n    document.getElementById(\u0027udSendEmail\u0027).addEventListener(\u0027click\u0027, ()=\u003e showToast(`âœ‰ï¸ Email sent to ${u.email}`));\r\n    document.getElementById(\u0027udResetPwd\u0027).addEventListener(\u0027click\u0027, ()=\u003e showToast(`ðŸ”‘ Password reset link sent to ${u.email}`));\r\n    document.getElementById(\u0027udDeleteUser\u0027).addEventListener(\u0027click\u0027, ()=\u003e{\r\n      if(confirm(`Delete ${u.name}? This cannot be undone.`)){\r\n        const idx = ALL_USERS.findIndex(x=\u003ex.id===u.id);\r\n        ALL_USERS.splice(idx,1);\r\n        showToast(`ðŸ—‘ï¸ ${u.name} deleted`);\r\n        udState.selectedId = ALL_USERS[0]?.id || null;\r\n        renderUdDetail();\r\n        render();\r\n      }\r\n    });\r\n\r\n    document.getElementById(\u0027udTabs\u0027).addEventListener(\u0027click\u0027, (e)=\u003e{\r\n      const tab = e.target.closest(\u0027.ud-tab\u0027);\r\n      if(!tab) return;\r\n      udState.activeTab = tab.dataset.tab;\r\n      const u2 = ALL_USERS.find(x=\u003ex.id===udState.selectedId);\r\n      const p2 = getExtendedProfile(u2);\r\n      const stats2 = getUserStats(u2);\r\n      document.querySelectorAll(\u0027.ud-tab\u0027).forEach(t=\u003et.classList.toggle(\u0027active\u0027, t===tab));\r\n      document.getElementById(\u0027udTabPanels\u0027).innerHTML = renderTabPanel(udState.activeTab, u2, p2, stats2);\r\n    });\r\n  }\r\n\r\n  /* â”€â”€ Top search bar on Users page: live search dropdown â”€â”€ */\r\n  udPageSearch.addEventListener(\u0027input\u0027, ()=\u003e{\r\n    const q = udPageSearch.value.trim().toLowerCase();\r\n    if(!q){ udSearchResults.classList.remove(\u0027open\u0027); return; }\r\n    const matches = ALL_USERS.filter(u =\u003e\r\n      u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.id.toLowerCase().includes(q)\r\n    ).slice(0,8);\r\n\r\n    if(matches.length===0){\r\n      udSearchResults.innerHTML = `\u003cdiv class=\"ud-search-empty\"\u003eNo users found for \"${udPageSearch.value}\"\u003c/div\u003e`;\r\n    } else {\r\n      udSearchResults.innerHTML = matches.map(u =\u003e `\r\n        \u003cdiv class=\"ud-search-result-item\" data-id=\"${u.id}\"\u003e\r\n          \u003cdiv class=\"avatar\" style=\"background:${u.color}\"\u003e${u.initials}\u003c/div\u003e\r\n          \u003cdiv\u003e\u003cdiv class=\"ud-search-result-name\"\u003e${u.name}\u003c/div\u003e\u003cdiv class=\"ud-search-result-meta\"\u003e${u.id} Â· ${u.email}\u003c/div\u003e\u003c/div\u003e\r\n        \u003c/div\u003e`).join(\u0027\u0027);\r\n    }\r\n    udSearchResults.classList.add(\u0027open\u0027);\r\n  });\r\n  udSearchResults.addEventListener(\u0027click\u0027, (e)=\u003e{\r\n    const item = e.target.closest(\u0027.ud-search-result-item\u0027);\r\n    if(!item) return;\r\n    udPageSearch.value = \u0027\u0027;\r\n    udSearchResults.classList.remove(\u0027open\u0027);\r\n    openUserDetails(item.dataset.id);\r\n  });\r\n  document.addEventListener(\u0027click\u0027, (e)=\u003e{\r\n    if(!udPageSearch.contains(e.target) \u0026\u0026 !udSearchResults.contains(e.target)){\r\n      udSearchResults.classList.remove(\u0027open\u0027);\r\n    }\r\n  });\r\n\r\n  document.getElementById(\u0027crumbUsers\u0027).addEventListener(\u0027click\u0027, ()=\u003e{\r\n    showToast(\u0027ðŸ“‹ Browse the full users list from the Dashboard table.\u0027);\r\n    navItems.forEach(n=\u003en.classList.remove(\u0027active\u0027));\r\n    document.querySelector(\u0027.nav-item[data-page=\"dashboard\"]\u0027).classList.add(\u0027active\u0027);\r\n    pageSections.forEach(s=\u003es.classList.remove(\u0027active\u0027));\r\n    document.getElementById(\u0027page-dashboard\u0027).classList.add(\u0027active\u0027);\r\n  });\r\n  document.getElementById(\u0027crumbDetail\u0027).addEventListener(\u0027click\u0027, ()=\u003e{\r\n    renderUdDetail();\r\n  });\r\n\r\n  /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• INIT â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */\r\n  render();\r\n  udState.selectedId = ALL_USERS[0].id; // default to first user when Users page opens\r\n  renderUdDetail();\r\n\r\n})();";
+const PER_PAGE = 8;
+const SORTABLE_STRING_KEYS = ['name', 'studentType', 'educationLevel', 'gender', 'collegeName', 'role'];
+const ROLE_CHIPS = [
+  { value: 'all', label: 'All' },
+  { value: 'Admin', label: 'Admin' },
+  { value: 'User', label: 'User' },
+];
+const DATE_CHIPS = [
+  { value: 'all', label: 'All time' },
+  { value: '7', label: 'Last 7 days' },
+  { value: '30', label: 'Last 30 days' },
+];
+const TABLE_COLUMNS = [
+  { key: 'name', label: 'Name' },
+  { key: 'studentType', label: 'Student Type' },
+  { key: 'educationLevel', label: 'Education Level' },
+  { key: 'gender', label: 'Gender' },
+  { key: 'collegeName', label: 'College Name' },
+  { key: 'cgpa', label: 'CGPA' },
+  { key: 'role', label: 'Role' },
+];
+const STAT_CARDS = [
+  {
+    key: 'totalUsers',
+    label: 'Total Users',
+    background: '#EEEEFD',
+    icon: (
+      <svg fill="none" height="22" viewBox="0 0 22 22" width="22">
+        <circle cx="9" cy="7.5" r="3.3" stroke="#4927EF" strokeWidth="1.7" />
+        <path d="M3 18c0-3.3 2.7-5.8 6-5.8s6 2.5 6 5.8" stroke="#4927EF" strokeLinecap="round" strokeWidth="1.7" />
+        <circle cx="15.5" cy="8.5" r="2.2" stroke="#4927EF" strokeWidth="1.5" />
+        <path d="M13.5 18c0-2.3 1.2-4 3.5-4.3" stroke="#4927EF" strokeLinecap="round" strokeWidth="1.5" />
+      </svg>
+    ),
+  },
+  {
+    key: 'totalApplications',
+    label: 'Total Applications',
+    background: '#E9FBF1',
+    icon: (
+      <svg fill="none" height="22" viewBox="0 0 22 22" width="22">
+        <rect height="16" rx="2" stroke="#16A34A" strokeWidth="1.6" width="12" x="5" y="3" />
+        <path d="M8 8h6M8 11h6M8 14h4" stroke="#16A34A" strokeLinecap="round" strokeWidth="1.5" />
+      </svg>
+    ),
+  },
+  {
+    key: 'totalScholarships',
+    label: 'Active Scholarships',
+    background: '#FEF3E2',
+    icon: (
+      <svg fill="none" height="22" viewBox="0 0 22 22" width="22">
+        <path d="M11 4L19 8L11 12L3 8L11 4Z" stroke="#F59E0B" strokeLinejoin="round" strokeWidth="1.6" />
+        <path d="M6.5 10v3.5c0 2 2 3.5 4.5 3.5s4.5-1.5 4.5-3.5V10" stroke="#F59E0B" strokeWidth="1.6" />
+      </svg>
+    ),
+  },
+  {
+    key: 'totalDisbursed',
+    label: 'Total Disbursed',
+    background: '#FDEAF1',
+    icon: (
+      <svg fill="none" height="22" viewBox="0 0 22 22" width="22">
+        <rect height="12" rx="2.5" stroke="#EC4899" strokeWidth="1.6" width="16" x="3" y="5" />
+        <path d="M3 9h16" stroke="#EC4899" strokeWidth="1.6" />
+        <circle cx="15" cy="13" fill="#EC4899" r="1.3" />
+      </svg>
+    ),
+  },
+  {
+    key: 'newUsersThisWeek',
+    label: 'New Users (This Week)',
+    background: '#EAF1FE',
+    icon: (
+      <svg fill="none" height="22" viewBox="0 0 22 22" width="22">
+        <circle cx="9" cy="8" r="3.3" stroke="#3B82F6" strokeWidth="1.7" />
+        <path d="M3 18c0-3.3 2.7-5.8 6-5.8s6 2.5 6 5.8" stroke="#3B82F6" strokeLinecap="round" strokeWidth="1.7" />
+        <path d="M16.5 7v4M14.5 9h4" stroke="#3B82F6" strokeLinecap="round" strokeWidth="1.7" />
+      </svg>
+    ),
+  },
+];
 
-const adminDashboardUsersLoader = `
-  function getDashboardApiBaseUrl(){
-    const baseUrl = String(window.__SCHOLARHUB_API_BASE_URL__ || 'http://localhost:3000');
-    return baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+function compareUsers(a, b, sortKey, sortDir) {
+  let av;
+  let bv;
+
+  if (sortKey === 'cgpa') {
+    av = Number.parseFloat(a.cgpa);
+    bv = Number.parseFloat(b.cgpa);
+    if (Number.isNaN(av)) av = Number.NEGATIVE_INFINITY;
+    if (Number.isNaN(bv)) bv = Number.NEGATIVE_INFINITY;
+  } else if (SORTABLE_STRING_KEYS.includes(sortKey)) {
+    av = String(a[sortKey]).toLowerCase();
+    bv = String(b[sortKey]).toLowerCase();
+  } else {
+    return 0;
   }
 
-  function getDashboardAuthToken(){
-    return localStorage.getItem('scholarhub-auth-token') || localStorage.getItem('token') || '';
-  }
-
-  function showDashboardLoading(message){
-    tableBody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><p>' + message + '</p></div></td></tr>';
-    showingText.textContent = message;
-    pagination.innerHTML = '';
-  }
-
-  function getResponseUsers(payload){
-    if(Array.isArray(payload)) return payload;
-    if(Array.isArray(payload?.users)) return payload.users;
-    if(Array.isArray(payload?.data)) return payload.data;
-    if(Array.isArray(payload?.data?.users)) return payload.data.users;
-    return [];
-  }
-
-  function cleanUserValue(value, fallback){
-    if(value === undefined || value === null || value === '') return fallback;
-    return String(value);
-  }
-
-  function getInitialsFromUser(name, email){
-    const words = String(name || email || 'User').trim().split(/\s+/).filter(Boolean);
-    if(words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
-    return String(words[0] || 'U').slice(0, 2).toUpperCase();
-  }
-
-  function normalizeDashboardUser(record, index){
-    const role = cleanUserValue(record.role, 'user').toLowerCase();
-    const createdDate = record.createdAt || record.updatedAt;
-    const dateObj = createdDate ? new Date(createdDate) : new Date(Date.now() - index * 86400000);
-    const name = cleanUserValue(record.name, record.email || 'User');
-
-    return {
-      id: 'SHU' + String(index + 1).padStart(3, '0'),
-      mongoId: cleanUserValue(record._id || record.id, ''),
-      name,
-      email: cleanUserValue(record.email, '-'),
-      mobile: cleanUserValue(record.state, '-'),
-      dateLabel: cleanUserValue(record.category, '-'),
-      dateObj: Number.isNaN(dateObj.getTime()) ? new Date() : dateObj,
-      status: role === 'admin' ? 'Admin' : 'User',
-      statusClass: role === 'admin' ? 'admin' : 'user',
-      color: AVATAR_COLORS[index % AVATAR_COLORS.length],
-      initials: getInitialsFromUser(name, record.email),
-    };
-  }
-
-  function updateDashboardUserStats(){
-    const statValues = document.querySelectorAll('.stat-value');
-    if(statValues[0]) statValues[0].textContent = ALL_USERS.length.toLocaleString('en-IN');
-    if(statValues[4]) statValues[4].textContent = ALL_USERS.length.toLocaleString('en-IN');
-  }
-
-  async function loadRegisteredUsers(){
-    const token = getDashboardAuthToken();
-    if(!token){
-      showDashboardLoading('Login as admin to load registered users.');
-      return;
-    }
-
-    try {
-      const response = await fetch(getDashboardApiBaseUrl() + '/user/all', {
-        headers: { Authorization: token },
-      });
-      const payload = await response.json().catch(() => null);
-
-      if(!response.ok){
-        throw new Error(payload?.message || payload?.error || 'Unable to load registered users.');
-      }
-
-      const registeredUsers = getResponseUsers(payload).map(normalizeDashboardUser);
-      ALL_USERS.splice(0, ALL_USERS.length, ...registeredUsers);
-      state.page = 1;
-      state.search = '';
-      state.statusFilter = 'all';
-      state.selected.clear();
-      udState.selectedId = ALL_USERS[0]?.id || null;
-      updateDashboardUserStats();
-      render();
-      if(udState.selectedId) renderUdDetail();
-    } catch(error) {
-      showDashboardLoading(error.message || 'Unable to load registered users.');
-      showToast(error.message || 'Unable to load registered users.');
-    }
-  }
-
-  showDashboardLoading('Loading registered users...');
-  loadRegisteredUsers();
-`;
-
-function createAdminDashboardMarkup() {
-  return adminDashboardMarkup
-    .replace('<button class="dd-item">ðŸ‘¤ My Profile</button>', '')
-    .replace('<button class="dd-item">âš™ï¸ Account Settings</button>', '')
-    .replace('<button class="dd-item">ðŸ”” Notification Prefs</button>', '')
-    .replace(
-      '<button class="dd-item danger">ðŸšª Logout</button>',
-      '<button class="dd-item danger" id="adminDropdownLogoutBtn">Logout</button>'
-    )
-    .replace('Mobile ', 'State ')
-    .replace('Registered On ', 'Category ')
-    .replace('Status ', 'Role ')
-    .replace('Status</div>', 'Role</div>')
-    .replace('data-status="Active">Active', 'data-status="Admin">Admin')
-    .replace('data-status="Inactive">Inactive', 'data-status="User">User');
+  if (av < bv) return sortDir === 'asc' ? -1 : 1;
+  if (av > bv) return sortDir === 'asc' ? 1 : -1;
+  return 0;
 }
 
-function createAdminDashboardScript() {
-  return `window.__SCHOLARHUB_API_BASE_URL__ = ${JSON.stringify(config.API_BASE_URL)};\n` + adminDashboardScript
-    .replace(
-      "status-pill ${u.status==='Active'?'active':'inactive'}",
-      "status-pill ${u.statusClass || (u.status==='Active'?'active':'inactive')}"
-    )
-    .replace(
-      /  const adminChip = document\.getElementById\('adminChip'\);[\s\S]*?document\.addEventListener\('click', \(\) => adminDropdown\.classList\.remove\('open'\)\);\r?\n/,
-      ''
-    )
-    .replace(
-      /  render\(\);\r?\n  udState\.selectedId = ALL_USERS\[0\]\.id; \/\/ default to first user when Users page opens\r?\n  renderUdDetail\(\);/,
-      adminDashboardUsersLoader
-    );
+function exportUsersAsCsv(users) {
+  const header = [
+    'User ID',
+    'Name',
+    'Email',
+    'Mobile',
+    'Student Type',
+    'Education Level',
+    'Gender',
+    'College Name',
+    'CGPA',
+    'Role',
+  ];
+  const rows = users.map((user) => [
+    user.id,
+    user.name,
+    user.email,
+    user.mobile,
+    user.studentType,
+    user.educationLevel,
+    user.gender,
+    user.collegeName,
+    user.cgpa,
+    user.role,
+  ]);
+  const csv = [header, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'scholarhub-users.csv';
+  link.click();
 }
+
+function formatStatValue(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString('en-IN') : 'N/A';
+}
+
+function getPageList(totalPages) {
+  if (totalPages <= 6) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+  return [1, 2, 3, '...', totalPages];
+}
+
+function SortIcon() {
+  return (
+    <svg className="sort-icon" fill="none" height="11" viewBox="0 0 11 11" width="11">
+      <path d="M2 4l3.5-3 3.5 3M2 7l3.5 3 3.5-3" stroke="currentColor" strokeWidth="1.3" />
+    </svg>
+  );
+}
+
 export default function AdminDashboardPage() {
-  const dashboardRef = useRef(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { users, stats, statusMessage, updateUserApproval } = useAdminUsers();
+
+  const [search, setSearch] = useState(() => searchParams.get('q') || '');
+  const [roleFilter, setRoleFilter] = useState(() => searchParams.get('role') || 'all');
+  const [dateRange, setDateRange] = useState(() => searchParams.get('dateRange') || 'all');
+  const [sortKey, setSortKey] = useState(null);
+  const [sortDir, setSortDir] = useState('asc');
+  const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [reviewingUserId, setReviewingUserId] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
+  const [pendingRole, setPendingRole] = useState('all');
+  const [pendingDateRange, setPendingDateRange] = useState('all');
+  const filtersRef = useRef(null);
+  const adminMenuRef = useRef(null);
 
   useEffect(() => {
-    const preconnectGoogle = document.createElement('link');
-    preconnectGoogle.rel = 'preconnect';
-    preconnectGoogle.href = 'https://fonts.googleapis.com';
+    if (!toastMessage) return undefined;
+    const timeoutId = window.setTimeout(() => setToastMessage(''), 2400);
+    return () => window.clearTimeout(timeoutId);
+  }, [toastMessage]);
 
-    const preconnectGstatic = document.createElement('link');
-    preconnectGstatic.rel = 'preconnect';
-    preconnectGstatic.href = 'https://fonts.gstatic.com';
-    preconnectGstatic.crossOrigin = '';
-
-    const fontLink = document.createElement('link');
-    fontLink.rel = 'stylesheet';
-    fontLink.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap';
-
-    const styleElement = document.createElement('style');
-    styleElement.textContent = `${adminDashboardStyles}
-      .sidebar,
-      .sidebar-overlay,
-      .menu-toggle {
-        display: none !important;
-      }
-
-      .main {
-        margin-left: 0 !important;
-        width: 100%;
-      }
-
-      .status-pill.admin {
-        background: var(--green-bg);
-        color: var(--green);
-      }
-
-      .status-pill.admin::before {
-        background: var(--green);
-      }
-
-      .status-pill.user {
-        background: #EAF1FE;
-        color: #2563EB;
-      }
-
-      .status-pill.user::before {
-        background: #2563EB;
-      }
-    `;
-
-    const scriptElement = document.createElement('script');
-    scriptElement.textContent = createAdminDashboardScript();
-
-    const handleLogout = () => {
-      window.localStorage.removeItem('scholarhub-auth-token');
-      window.localStorage.removeItem('token');
-      window.localStorage.removeItem('scholarhub-react-state-v1');
-      navigate('/login');
-    };
-
-    document.head.append(preconnectGoogle, preconnectGstatic, fontLink, styleElement);
-    dashboardRef.current?.appendChild(scriptElement);
-
-    const adminChip = dashboardRef.current?.querySelector('#adminChip');
-    const adminDropdown = dashboardRef.current?.querySelector('#adminDropdown');
-    const logoutButton = dashboardRef.current?.querySelector('#adminDropdownLogoutBtn');
-
-    const handleAdminChipClick = (event) => {
-      event.stopPropagation();
-      adminDropdown?.classList.toggle('open');
-    };
-
+  useEffect(() => {
     const handleDocumentClick = (event) => {
-      if (!adminDropdown?.parentElement?.contains(event.target)) {
-        adminDropdown?.classList.remove('open');
-      }
+      if (filtersRef.current && !filtersRef.current.contains(event.target)) setFiltersOpen(false);
+      if (adminMenuRef.current && !adminMenuRef.current.contains(event.target)) setAdminMenuOpen(false);
     };
-
-    adminChip?.addEventListener('click', handleAdminChipClick);
     document.addEventListener('click', handleDocumentClick);
-    logoutButton?.addEventListener('click', handleLogout);
+    return () => document.removeEventListener('click', handleDocumentClick);
+  }, []);
 
-    return () => {
-      adminChip?.removeEventListener('click', handleAdminChipClick);
-      document.removeEventListener('click', handleDocumentClick);
-      logoutButton?.removeEventListener('click', handleLogout);
-      scriptElement.remove();
-      styleElement.remove();
-      fontLink.remove();
-      preconnectGstatic.remove();
-      preconnectGoogle.remove();
-    };
-  }, [navigate]);
+  const filteredSortedUsers = useMemo(() => {
+    let result = users;
+
+    const query = search.trim().toLowerCase();
+    if (query) {
+      result = result.filter((user) =>
+        [
+          user.name,
+          user.studentType,
+          user.educationLevel,
+          user.gender,
+          user.collegeName,
+          String(user.cgpa),
+          user.role,
+          user.email,
+          user.mobile,
+          user.id,
+        ].some((field) => field.toLowerCase().includes(query))
+      );
+    }
+
+    if (roleFilter !== 'all') {
+      result = result.filter((user) => user.role === roleFilter);
+    }
+
+    if (dateRange !== 'all') {
+      const cutoffMs = Date.now() - Number.parseInt(dateRange, 10) * 24 * 60 * 60 * 1000;
+      result = result.filter((user) => user.dateObj?.getTime() >= cutoffMs);
+    }
+
+    if (sortKey) {
+      result = [...result].sort((a, b) => compareUsers(a, b, sortKey, sortDir));
+    }
+
+    return result;
+  }, [users, search, roleFilter, dateRange, sortKey, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredSortedUsers.length / PER_PAGE));
+  const safePage = Math.min(page, totalPages);
+  const start = (safePage - 1) * PER_PAGE;
+  const pageUsers = filteredSortedUsers.slice(start, start + PER_PAGE);
+  const allOnPageSelected = pageUsers.length > 0 && pageUsers.every((user) => selectedIds.has(user.id));
+  const activeFilterCount = (roleFilter !== 'all' ? 1 : 0) + (dateRange !== 'all' ? 1 : 0);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const openFilters = () => {
+    setPendingRole(roleFilter);
+    setPendingDateRange(dateRange);
+    setFiltersOpen((open) => !open);
+  };
+
+  const applyFilters = () => {
+    setRoleFilter(pendingRole);
+    setDateRange(pendingDateRange);
+    setPage(1);
+    setFiltersOpen(false);
+  };
+
+  const handleSortChange = (key) => {
+    if (sortKey === key) {
+      setSortDir((dir) => (dir === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
+
+  const handleToggleSelect = (id) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleToggleSelectAll = (checked) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      pageUsers.forEach((user) => {
+        if (checked) next.add(user.id);
+        else next.delete(user.id);
+      });
+      return next;
+    });
+  };
+
+  const handleExport = () => {
+    exportUsersAsCsv(filteredSortedUsers);
+    setToastMessage('CSV exported successfully');
+  };
+
+  const handleLogout = () => {
+    window.localStorage.removeItem('scholarhub-auth-token');
+    window.localStorage.removeItem('token');
+    window.localStorage.removeItem('scholarhub-react-state-v1');
+    navigate('/login');
+  };
+
+  const handleReviewAction = async (event, user, approvalStatus) => {
+    event.stopPropagation();
+    if (user.approvalStatus === approvalStatus) return;
+
+    try {
+      setReviewingUserId(user.id);
+      await updateUserApproval(user.id, approvalStatus);
+      setToastMessage(`${user.name} ${approvalStatus} successfully`);
+    } catch (error) {
+      setToastMessage(error.message || `Unable to mark ${user.name} as ${approvalStatus}.`);
+    } finally {
+      setReviewingUserId('');
+    }
+  };
+
+  const openUserDetails = (userId) => {
+    navigate(`/admin/users/${userId}`);
+  };
 
   return (
-    <main
-      className="admin-dashboard-shell"
-      dangerouslySetInnerHTML={{ __html: createAdminDashboardMarkup() }}
-      ref={dashboardRef}
-    />
+    <main className="admin-dashboard-shell">
+      
+      <div className="admin-dashboard-page">
+        
+        {/* ══════════ TOPBAR ══════════ */}
+        <div className="topbar">
+          <div className="search-wrap">
+           
+            <span className="search-icon">
+              <svg fill="none" height="17" viewBox="0 0 17 17" width="17">
+                <circle cx="7.5" cy="7.5" r="5.2" stroke="currentColor" strokeWidth="1.6" />
+                <path d="M11.7 11.7L15 15" stroke="currentColor" strokeLinecap="round" strokeWidth="1.6" />
+              </svg>
+            </span>
+            <input
+              className="search-input"
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Search by name, email, mobile or user ID..."
+              type="text"
+              value={search}
+            />
+          </div>
+
+          <div ref={filtersRef} style={{ position: 'relative' }}>
+            <button className={`filter-btn${activeFilterCount > 0 ? ' active' : ''}`} onClick={openFilters} type="button">
+              <svg fill="none" height="16" viewBox="0 0 16 16" width="16">
+                <path d="M2 3h12l-4.5 5.5V13L7 11.5V8.5L2 3Z" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.5" />
+              </svg>
+              Filters
+              {activeFilterCount > 0 ? (
+                <span
+                  style={{
+                    background: 'var(--primary)',
+                    color: '#fff',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    padding: '1px 6px',
+                    borderRadius: '99px',
+                    marginLeft: '2px',
+                  }}
+                >
+                  {activeFilterCount}
+                </span>
+              ) : null}
+            </button>
+
+            <div className={`filters-panel${filtersOpen ? ' open' : ''}`}>
+              <div className="filters-panel-title">Status</div>
+              <div className="filter-chip-row">
+                {ROLE_CHIPS.map((chip) => (
+                  <button
+                    className={`filter-chip${pendingRole === chip.value ? ' selected' : ''}`}
+                    key={chip.value}
+                    onClick={() => setPendingRole(chip.value)}
+                    type="button"
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+              <div className="filters-panel-title">Registered</div>
+              <div className="filter-chip-row">
+                {DATE_CHIPS.map((chip) => (
+                  <button
+                    className={`filter-chip${pendingDateRange === chip.value ? ' selected' : ''}`}
+                    key={chip.value}
+                    onClick={() => setPendingDateRange(chip.value)}
+                    type="button"
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+              <button className="filters-apply" onClick={applyFilters} type="button">
+                Apply Filters
+              </button>
+            </div>
+          </div>
+
+          <div className="topbar-right">
+            <button className="bell-btn" onClick={() => setToastMessage('You have 5 new notifications')} type="button">
+              <svg fill="none" height="21" viewBox="0 0 21 21" width="21">
+                <path
+                  d="M10.5 2.5c-2.5 0-4.5 2-4.5 4.5v3l-1.8 3h12.6l-1.8-3v-3c0-2.5-2-4.5-4.5-4.5Z"
+                  stroke="currentColor"
+                  strokeLinejoin="round"
+                  strokeWidth="1.5"
+                />
+                <path d="M8.7 16c.3 1 1 1.5 1.8 1.5s1.5-.5 1.8-1.5" stroke="currentColor" strokeWidth="1.5" />
+              </svg>
+              <span className="bell-badge">5</span>
+            </button>
+
+            <div ref={adminMenuRef} style={{ position: 'relative' }}>
+              <div className="admin-chip" onClick={() => setAdminMenuOpen((open) => !open)}>
+                <div className="admin-avatar">A</div>
+                <div className="admin-info">
+                  <span className="admin-name">Admin</span>
+                  <span className="admin-role">Super Admin</span>
+                </div>
+                <svg fill="none" height="14" viewBox="0 0 14 14" width="14">
+                  <path
+                    d="M3.5 5.5L7 9l3.5-3.5"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="1.6"
+                  />
+                </svg>
+              </div>
+              <div className={`admin-dropdown${adminMenuOpen ? ' open' : ''}`}>
+                <button className="dd-item" type="button">
+                  My Profile
+                </button>
+                <button className="dd-item" type="button">
+                  Account Settings
+                </button>
+                <button className="dd-item" type="button">
+                  Notification Prefs
+                </button>
+                <button className="dd-item danger" onClick={handleLogout} type="button">
+                  Logout
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {statusMessage ? (
+          <div className="admin-guard-message">{statusMessage}</div>
+        ) : (
+          <>
+            {/* ══════════ STAT CARDS ══════════ */}
+            <div className="stats-row">
+              {STAT_CARDS.map((card) => (
+                <div className="stat-card" key={card.key}>
+                  <div className="stat-top">
+                    <div className="stat-icon" style={{ background: card.background }}>
+                      {card.icon}
+                    </div>
+                    <span className="stat-label">{card.label}</span>
+                  </div>
+                  <div className="stat-value">{formatStatValue(stats[card.key])}</div>
+                  <div className="stat-growth">
+                    <span className="stat-growth-muted">N/A</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ══════════ USERS TABLE ══════════ */}
+            <div className="table-card">
+              <div className="table-card-head">
+                <span className="table-title">All Registered Users</span>
+                <button className="export-btn" onClick={handleExport} type="button">
+                  <svg fill="none" height="15" viewBox="0 0 15 15" width="15">
+                    <path
+                      d="M7.5 1.5v8M4.5 6.5l3 3 3-3"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="1.5"
+                    />
+                    <path
+                      d="M2 11v1.5A1.5 1.5 0 003.5 14h8a1.5 1.5 0 001.5-1.5V11"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeWidth="1.5"
+                    />
+                  </svg>
+                  Export
+                </button>
+              </div>
+
+              <div className="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style={{ width: '42px' }}>
+                        <input
+                          checked={allOnPageSelected}
+                          className="cb"
+                          onChange={(event) => handleToggleSelectAll(event.target.checked)}
+                          type="checkbox"
+                        />
+                      </th>
+                      {TABLE_COLUMNS.map((column) => (
+                        <th
+                          className={`sortable${sortKey === column.key ? ` sorted${sortDir === 'desc' ? ' desc' : ''}` : ''}`}
+                          key={column.key}
+                          onClick={() => handleSortChange(column.key)}
+                        >
+                          <span className="th-flex">
+                            {column.label} <SortIcon />
+                          </span>
+                        </th>
+                      ))}
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan={TABLE_COLUMNS.length + 2}>
+                          <div className="empty-state">
+                            <svg fill="none" height="48" viewBox="0 0 48 48" width="48">
+                              <circle cx="22" cy="22" r="14" stroke="#9498B3" strokeWidth="2.5" />
+                              <path d="M32 32l8 8" stroke="#9498B3" strokeLinecap="round" strokeWidth="2.5" />
+                            </svg>
+                            <p>No users found matching your search/filters.</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      pageUsers.map((user) => (
+                        <tr
+                          className="clickable-row"
+                          key={user.id}
+                          onClick={() => openUserDetails(user.id)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              openUserDetails(user.id);
+                            }
+                          }}
+                          tabIndex={0}
+                        >
+                          <td>
+                            <input
+                              checked={selectedIds.has(user.id)}
+                              className="cb"
+                              onClick={(event) => event.stopPropagation()}
+                              onChange={() => handleToggleSelect(user.id)}
+                              type="checkbox"
+                            />
+                          </td>
+                          <td>
+                            <div className="user-cell user-cell-link">
+                              <div className="avatar" style={{ background: user.color }}>
+                                {user.initials}
+                              </div>
+                              <span className="user-name">{user.name}</span>
+                            </div>
+                          </td>
+                          <td style={{ color: 'var(--subtitle)' }}>{user.studentType}</td>
+                          <td style={{ color: 'var(--subtitle)' }}>{user.educationLevel}</td>
+                          <td style={{ color: 'var(--subtitle)' }}>{user.gender}</td>
+                          <td style={{ color: 'var(--subtitle)' }}>{user.collegeName}</td>
+                          <td style={{ color: 'var(--subtitle)' }}>{user.cgpa}</td>
+                          <td>
+                            <span className={`status-pill ${user.roleClass || 'neutral'}`}>{user.role}</span>
+                          </td>
+                          <td>
+                            <div className="review-cell">
+                              <span className={`status-pill ${user.approvalStatusClass}`}>{user.approvalStatusLabel}</span>
+                              <div className="decision-actions">
+                                <button
+                                  className={`decision-btn decision-btn--accept${user.approvalStatus === 'accepted' ? ' active' : ''}`}
+                                  disabled={reviewingUserId === user.id}
+                                  onClick={(event) => handleReviewAction(event, user, 'accepted')}
+                                  type="button"
+                                >
+                                  Accept
+                                </button>
+                                <button
+                                  className={`decision-btn decision-btn--reject${user.approvalStatus === 'rejected' ? ' active' : ''}`}
+                                  disabled={reviewingUserId === user.id}
+                                  onClick={(event) => handleReviewAction(event, user, 'rejected')}
+                                  type="button"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="table-footer">
+                <span className="showing-text">
+                  {filteredSortedUsers.length === 0
+                    ? 'No users found'
+                    : `Showing ${start + 1} to ${Math.min(start + PER_PAGE, filteredSortedUsers.length)} of ${filteredSortedUsers.length.toLocaleString()} users`}
+                </span>
+                <div className="pagination">
+                  <button
+                    aria-label="Previous page"
+                    className="page-btn"
+                    disabled={safePage === 1}
+                    onClick={() => setPage(safePage - 1)}
+                    type="button"
+                  >
+                    <svg fill="none" height="14" viewBox="0 0 14 14" width="14">
+                      <path d="M9 11L5 7l4-4" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+                    </svg>
+                  </button>
+
+                  {getPageList(totalPages).map((entry, index) =>
+                    entry === '...' ? (
+                      <span className="page-dots" key={`dots-${index}`}>
+                        …
+                      </span>
+                    ) : (
+                      <button
+                        className={`page-btn${entry === safePage ? ' active' : ''}`}
+                        key={entry}
+                        onClick={() => setPage(entry)}
+                        type="button"
+                      >
+                        {entry}
+                      </button>
+                    )
+                  )}
+
+                  <button
+                    aria-label="Next page"
+                    className="page-btn"
+                    disabled={safePage === totalPages}
+                    onClick={() => setPage(safePage + 1)}
+                    type="button"
+                  >
+                    <svg fill="none" height="14" viewBox="0 0 14 14" width="14">
+                      <path d="M5 3l4 4-4 4" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className={`toast${toastMessage ? ' show' : ''}`}>{toastMessage}</div>
+    </main>
   );
+}
+
+if (import.meta.hot) {
+  import.meta.hot.accept(() => {
+    window.location.reload();
+  });
 }

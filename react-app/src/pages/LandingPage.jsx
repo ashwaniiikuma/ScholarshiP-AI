@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { post } from '../util/request';
 import { URL } from '../util/api';
+import jslLogo from '../jsl.logo.jpg';
 import SignupFormFields, {
   createInitialSignupForm,
   validateSignupForm,
@@ -148,6 +149,7 @@ export default function LandingPage() {
         window.localStorage.removeItem('scholarhub-auth-token');
         window.localStorage.removeItem('token');
 
+        
         const errrorText = await response.text();
         setLoginError(errrorText || 'Login failed. Please check the API response and try again.');
         return;
@@ -234,8 +236,16 @@ export default function LandingPage() {
 
   return (
     <div className="auth-screen">
+      
       <section className="auth-hero">
+        <div className="main-wrapper"> 
+      {/* Logo ko yahan sabse upar rakho, taaki ye pure screen ka top-left corner le */}
+      <div className="logo-header">
+        <img src={jslLogo} alt="JSL Logo" />
+      </div>
+      </div>
         <div className="brand-lockup">
+          
           <span className="brand-mark">SH</span>
           <span className="brand-text">
             ScholarHub
@@ -287,8 +297,12 @@ export default function LandingPage() {
         </div>
       </section>
 
+
+    
       <section className="auth-panel">
+ 
         <div className="auth-card">
+ 
           <p className="eyebrow">Access portal</p>
           <h2>Continue your scholarship journey</h2>
           <p className="auth-card__copy">

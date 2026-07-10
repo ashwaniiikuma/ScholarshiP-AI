@@ -37,6 +37,40 @@ body,
   min-height: 100%;
 }
 
+.logo-header {
+    position: absolute;
+    top: 20px;
+    left: 1600px; /* Isse 20px par rakho, 1600px mat rakho varna wo screen se bahar chala jayega */
+    z-index: 100;
+    
+    /* Animation Properties */
+    opacity: 0; /* Shuru mein invisible */
+    animation: slideInLeft 1s ease-out forwards; /* 1 second ka slide animation */
+}
+
+/* Keyframes definition */
+@keyframes slideInLeft {
+    0% {
+        opacity: 0;
+        transform: translateX(-50px); /* Left se bahar se aayega */
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(0); /* Sahi jagah par ruk jayega */
+    }
+}
+
+.logo-header img {
+    width: 60px;
+    height: auto;
+    transition: transform 0.3s ease; /* Hover effect ke liye smooth transition */
+}
+
+/* Chhota sa hover effect (Optional) */
+.logo-header img:hover {
+    transform: scale(1.1); /* Hover karne par halka sa bada hoga */
+}
+
 body {
   margin: 0;
   font-family: 'Manrope', sans-serif;

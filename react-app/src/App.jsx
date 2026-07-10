@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import AdminDashboardPage from './pages/AdminDashboardPage';
+import AdminUserDetailPage from './pages/AdminUserDetailPage';
 import AssistantPage from './pages/AssistantPage';
 import AcademicDetailsPage from './pages/AcademicDetailsPage';
 import DashboardPage from './pages/DashboardPage';
@@ -13,7 +14,7 @@ import SignupPage from './pages/SignupPage';
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
       <Routes>
         <Route element={<LandingPage />} path="/" />
         <Route element={<LandingPage />} path="/login" />
@@ -23,7 +24,7 @@ export default function App() {
         <Route element={<FinancialDetailsPage />} path="/financial-details" />
         <Route element={<ReviewSubmitPage />} path="/review-submit" />
         <Route element={<AdminDashboardPage />} path="/admin" />
-        <Route element={<AdminDashboardPage />} path="/admin-dashboard" />
+        <Route element={<AdminUserDetailPage />} path="/admin/users/:id" />
         <Route element={<DashboardPage />} path="/dashboard" />
         <Route element={<NotificationsPage />} path="/notifications" />
         <Route element={<AssistantPage />} path="/assistant" />

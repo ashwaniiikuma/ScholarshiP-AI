@@ -4,19 +4,25 @@ import {
   states,
 } from '../../data/mockData';
 
-export function createInitialSignupForm(state) {
-  const cgpaMatch = String(state.academic.marks ?? '').match(/\d+(\.\d+)?/);
+const genderOptions = ['Male', 'Female', 'Other'];
+const studentTypeOptions = ['School', 'College'];
 
+export function createInitialSignupForm() {
   return {
-    name: state.personal.fullName || '',
-    email: state.profile.email || '',
+    name: '',
+    email: '',
+    mobile: '',
+    dateOfBirth: '',
+    gender: '',
+    studentType: '',
+    collegeName: '',
     password: '',
     confirmPassword: '',
-    state: state.personal.state || '',
-    category: state.financial.category || '',
-    income: state.financial.annualIncome ? String(state.financial.annualIncome) : '',
-    educationLevel: state.profile.educationLevel || '',
-    cgpa: cgpaMatch ? cgpaMatch[0] : '',
+    state: '',
+    category: '',
+    income: '',
+    educationLevel: '',
+    cgpa: '',
     acceptTerms: true,
   };
 }
@@ -40,6 +46,31 @@ export function validateSignupForm(form) {
 
   if (form.password !== form.confirmPassword) {
     return 'Password confirmation does not match.';
+  }
+
+  if (!form.mobile.trim()) {
+    return 'Mobile number is required.';
+  }
+
+  const mobileDigits = form.mobile.replace(/\D/g, '');
+  if (mobileDigits.length < 10) {
+    return 'Enter a valid mobile number.';
+  }
+
+  if (!form.dateOfBirth) {
+    return 'Date of birth is required.';
+  }
+
+  if (!form.gender) {
+    return 'Gender is required.';
+  }
+
+  if (!form.studentType) {
+    return 'Student type is required.';
+  }
+
+  if (!form.collegeName.trim()) {
+    return 'School or college name is required.';
   }
 
   if (!form.state) {
@@ -105,6 +136,70 @@ export default function SignupFormFields({
           />
         </label>
       </div>
+
+      <div className="form-grid">
+        <label className="form-field">
+          <span>Mobile number</span>
+          <input
+            className="input"
+            onChange={onFieldChange('mobile')}
+            placeholder="Enter your mobile number"
+            type="tel"
+            value={form.mobile}
+          />
+        </label>
+
+        <label className="form-field">
+          <span>Date of birth</span>
+          <input
+            className="input"
+            onChange={onFieldChange('dateOfBirth')}
+            type="date"
+            value={form.dateOfBirth}
+          />
+        </label>
+      </div>
+
+      <div className="form-grid">
+        <label className="form-field">
+          <span>Gender</span>
+          <select className="input" onChange={onFieldChange('gender')} value={form.gender}>
+            <option value="">Select your gender</option>
+            {genderOptions.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="form-field">
+          <span>Student type</span>
+          <select
+            className="input"
+            onChange={onFieldChange('studentType')}
+            value={form.studentType}
+          >
+            <option value="">Select student type</option>
+            {studentTypeOptions.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <label className="form-field">
+        <span>School / college name</span>
+        <input
+          className="input"
+          onChange={onFieldChange('collegeName')}
+          placeholder="Enter your institution name"
+          type="text"
+          value={form.collegeName}
+        />
+      </label>
 
       <div className="form-grid">
         <label className="form-field">
